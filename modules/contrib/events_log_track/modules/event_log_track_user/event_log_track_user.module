@@ -1,0 +1,102 @@
+<?php
+
+/**
+ * @file
+ * Logs user CUD commands in the event_log_track module.
+ */
+
+/**
+ * Implements hook_event_log_track_handlers().
+ */
+function event_log_track_user_event_log_track_handlers(): array {
+  // User event log handler.
+  $handlers = [];
+  $handlers['user'] = [
+    'title' => t('User'),
+    'operations' => [
+      'insert',
+      'update',
+      'delete',
+    ],
+  ];
+  return $handlers;
+}
+
+/**
+ * Implements hook_user_insert().
+ */
+function event_log_track_user_user_insert($account): void {
+  $roles = $account->getRoles();
+
+  if (empty($roles)) {
+    $roles = 'NULL';
+  }
+  else {
+    $roles = implode(',', $roles);
+  }
+  $log = [
+    'type' => 'user',
+    'operation' => 'insert',
+    'description' => t('%name (%uid) as %role (status %status)', [
+      '%name' => !empty($account->getAccountName()) ? $account->getAccountName() : t('Anonymous'),
+      '%uid' => $account->id(),
+      '%role' => $roles,
+      '%status' => $account->isBlocked() ? 'blocked' : 'active',
+    ]),
+    'ref_numeric' => $account->id(),
+    'ref_char' => !empty($account->getAccountName()) ? $account->getAccountName() : t('Anonymous'),
+  ];
+  event_log_track_insert($log);
+}
+
+/**
+ * Implements hook_user_update().
+ */
+function event_log_track_user_user_update($account): void {
+  $roles = $account->original->getRoles();
+  $updated_roles = $account->getRoles();
+
+  if (empty($roles)) {
+    $roles = 'NULL';
+  }
+  else {
+    $roles = implode(',', $roles);
+  }
+  if (empty($updated_roles)) {
+    $updated_roles = 'NULL';
+  }
+  else {
+    $updated_roles = implode(',', $updated_roles);
+  }
+  $log = [
+    'type' => 'user',
+    'operation' => 'update',
+    'description' => t('%name (%uid) as original roles: %role changed to new roles: %updated_roles (status %status)', [
+      '%name' => !empty($account->original->getAccountName()) ? $account->original->getAccountName() : t('Anonymous'),
+      '%uid' => $account->original->id(),
+      '%role' => $roles,
+      '%updated_roles' => $updated_roles,
+      '%status' => $account->isBlocked() ? 'blocked' : 'active',
+    ]),
+    'ref_numeric' => $account->original->id(),
+    'ref_char' => !empty($account->getAccountName()) ? $account->getAccountName() : t('Anonymous'),
+  ];
+  event_log_track_insert($log);
+}
+
+/**
+ * Implements hook_user_delete().
+ */
+function event_log_track_user_user_delete($account): void {
+  $log = [
+    'type' => 'user',
+    'operation' => 'delete',
+    'description' => t('%name (uid %uid)', [
+      '%name' => $account->getAccountName(),
+      '%uid' => $account->id(),
+    ]),
+    'ref_numeric' => $account->id(),
+    'ref_char' => !empty($account->getAccountName()) ? $account->getAccountName() : t('Anonymous'),
+  ];
+  event_log_track_insert($log);
+}

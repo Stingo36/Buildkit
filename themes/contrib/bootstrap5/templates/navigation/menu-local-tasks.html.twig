@@ -1,0 +1,59 @@
+<style>
+/* Clean + minimal tabs: left-aligned, light border, no colors */
+.tabs-wrapper {
+  margin-bottom: 1rem;
+  padding-top: 0.5rem;
+}
+
+.tabs-wrapper .nav {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.tabs-wrapper .nav .nav-link {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #222;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 0.25rem 0.25rem 0 0;
+  transition: all 0.2s ease-in-out;
+}
+
+.tabs-wrapper .nav .nav-link:hover {
+  background-color: #f8f9fa;
+  border-color: #e0e0e0;
+}
+
+.tabs-wrapper .nav .nav-link.active {
+  font-weight: 600;
+  border-bottom: 2px solid #333;
+  background-color: #f8f9fa;
+}
+</style>
+
+{% if primary %}
+  <nav class="tabs-wrapper tabs-primary" aria-labelledby="primary-tabs-title" data-drupal-nav-tabs>
+    <h2 id="primary-tabs-title" class="visually-hidden">{{ 'Primary tabs'|t }}</h2>
+    <ul class="nav flex-column flex-md-row" data-drupal-nav-tabs-target>
+      {{ primary }}
+    </ul>
+  </nav>
+{% endif %}
+
+{% if secondary %}
+  <nav class="tabs-wrapper tabs-secondary" aria-labelledby="secondary-tabs-title" data-drupal-nav-tabs>
+    <h2 id="secondary-tabs-title" class="visually-hidden">{{ 'Secondary tabs'|t }}</h2>
+    <ul class="nav flex-column flex-md-row" data-drupal-nav-tabs-target>
+      {{ secondary }}
+    </ul>
+  </nav>
+{% endif %}
+

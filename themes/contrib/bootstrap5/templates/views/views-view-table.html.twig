@@ -1,0 +1,211 @@
+{#
+/**
+ * @file
+ * Theme override for displaying a view as a modern table.
+ */
+#}
+{%
+  set classes = [
+    'table',
+    'views-table',
+    'views-view-table',
+    'views-table--ncbs',
+    'table-modern',
+    'cols-' ~ header|length,
+    responsive ? 'responsive-enabled',
+    sticky ? 'sticky-header',
+  ]
+%}
+
+<div class="table-container">
+  <table{{ attributes.addClass(classes) }}>
+    {% if caption_needed %}
+      <caption>
+        {% if caption %}
+          {{ caption }}
+        {% else %}
+          {{ title }}
+        {% endif %}
+        {% if (summary is not empty) or (description is not empty) %}
+          <details>
+            {% if summary is not empty %}
+              <summary>{{ summary }}</summary>
+            {% endif %}
+            {% if description is not empty %}
+              {{ description }}
+            {% endif %}
+          </details>
+        {% endif %}
+      </caption>
+    {% endif %}
+
+    {% if header %}
+      <thead>
+        <tr>
+          {% for key, column in header %}
+            {% if column.default_classes %}
+              {% set column_classes = [
+                'views-field',
+                'views-field-' ~ fields[key],
+              ] %}
+            {% endif %}
+            <th{{ column.attributes.addClass(column_classes).setAttribute('scope', 'col') }}>
+              {%- if column.wrapper_element -%}
+                <{{ column.wrapper_element }}>
+                  {%- if column.url -%}
+                    <a href="{{ column.url }}" title="{{ column.title }}" rel="nofollow">{{ column.content }}{{ column.sort_indicator }}</a>
+                  {%- else -%}
+                    {{ column.content }}{{ column.sort_indicator }}
+                  {%- endif -%}
+                </{{ column.wrapper_element }}>
+              {%- else -%}
+                {%- if column.url -%}
+                  <a href="{{ column.url }}" title="{{ column.title }}" rel="nofollow">{{ column.content }}{{ column.sort_indicator }}</a>
+                {%- else -%}
+                  {{- column.content }}{{ column.sort_indicator }}
+                {%- endif -%}
+              {%- endif -%}
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+    {% endif %}
+
+    <tbody>
+      {% for row in rows %}
+        <tr{{ row.attributes }}>
+          {% for key, column in row.columns %}
+            {% if column.default_classes %}
+              {% set column_classes = ['views-field'] %}
+              {% for field in column.fields %}
+                {% set column_classes = column_classes|merge(['views-field-' ~ field]) %}
+              {% endfor %}
+            {% endif %}
+            <td{{ column.attributes.addClass(column_classes) }}>
+              {%- if column.wrapper_element -%}
+                <{{ column.wrapper_element }}>
+                  {% for content in column.content %}
+                    {{ content.separator }}{{ content.field_output }}
+                  {% endfor %}
+                </{{ column.wrapper_element }}>
+              {%- else -%}
+                {% for content in column.content %}
+                  {{- content.separator }}{{ content.field_output -}}
+                {% endfor %}
+              {%- endif -%}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+<style>
+/* ==============================
+   Modern Views Table Styling
+   ============================== */
+
+/* Wrapper: adds scroll + shadow */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1rem 0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  background: var(--tbl-bg);
+}
+
+/* Base variables (light) */
+:root {
+  --tbl-bg: #ffffff;
+  --tbl-header-bg: #f9fafb;
+  --tbl-header-text: #111827;
+  --tbl-border: #e5e7eb;
+  --tbl-hover: #f3f4f6;
+  --tbl-accent: #2563eb;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tbl-bg: #1f2937;
+    --tbl-header-bg: #374151;
+    --tbl-header-text: #f9fafb;
+    --tbl-border: #4b5563;
+    --tbl-hover: #374151;
+    --tbl-accent: #3b82f6;
+  }
+}
+/* Base table */
+table.views-view-table.views-table--ncbs.table-modern {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--tbl-header-text);
+  background: var(--tbl-bg);
+  border-radius: 12px;
+  overflow: hidden;
+
+  /* Added resets */
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+/* Header */
+table.views-view-table.views-table--ncbs.table-modern thead {
+  background: var(--tbl-header-bg);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(6px);
+}
+table.views-view-table.views-table--ncbs.table-modern thead th {
+  padding: 14px 18px;
+  font-weight: 600;
+  color: var(--tbl-header-text);
+  border-bottom: 2px solid var(--tbl-accent);
+  text-align: left;
+  white-space: nowrap;
+}
+table.views-view-table.views-table--ncbs.table-modern thead th a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+table.views-view-table.views-table--ncbs.table-modern thead th a:hover {
+  color: var(--tbl-accent);
+}
+
+/* Body */
+table.views-view-table.views-table--ncbs.table-modern tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--tbl-border);
+  vertical-align: middle;
+  transition: background 0.2s, transform 0.15s;
+}
+table.views-view-table.views-table--ncbs.table-modern tbody tr:hover td {
+  background: var(--tbl-hover);
+  transform: scale(1.01);
+  box-shadow: inset 0 0 0 9999px rgba(37,99,235,0.05);
+}
+
+/* Rounded corners */
+table.views-view-table.views-table--ncbs.table-modern thead th:first-child {
+  border-top-left-radius: 12px;
+}
+table.views-view-table.views-table--ncbs.table-modern thead th:last-child {
+  border-top-right-radius: 12px;
+}
+table.views-view-table.views-table--ncbs.table-modern tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 12px;
+}
+table.views-view-table.views-table--ncbs.table-modern tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 12px;
+}
+</style>

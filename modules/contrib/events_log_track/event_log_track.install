@@ -1,0 +1,147 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the event_log_track module.
+ */
+
+use Drupal\Core\Config\FileStorage;
+use Drupal\Core\Database\Database;
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Implements hook_schema().
+ */
+function event_log_track_schema(): array {
+  $schema['event_log_track'] = [
+    'description' => 'Logged events by the event_log_track module.',
+    'fields' => [
+      'lid' => [
+        'description' => 'Log id.',
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'type' => [
+        'description' => 'Event handler type.',
+        'type' => 'varchar',
+        'length' => '50',
+        'not null' => TRUE,
+      ],
+      'operation' => [
+        'description' => 'The operation performed.',
+        'type' => 'varchar',
+        'length' => '50',
+        'not null' => TRUE,
+      ],
+      'path' => [
+        'type' => 'varchar',
+        'length' => '2048',
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Current path.',
+      ],
+      'ref_numeric' => [
+        'description' => 'A numeric value that can be used to reference an object.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ],
+      'ref_char' => [
+        'description' => 'A character value that can be used to reference an object.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ],
+      'description' => [
+        'description' => 'Description of the event, in HTML.',
+        'type' => 'text',
+        'size' => 'medium',
+        'not null' => TRUE,
+      ],
+      'uid' => [
+        'description' => 'User id that triggered this event (0 = anonymous user).',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'ip' => [
+        'description' => 'IP address of the visitor that triggered this event.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ],
+      'created' => [
+        'description' => 'The event timestamp.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['lid'],
+    'indexes' => [
+      'created' => ['created'],
+      'user' => ['uid', 'ip'],
+      'ip' => ['ip'],
+      'join' => ['type', 'operation', 'ref_numeric', 'ref_char'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function event_log_track_uninstall(): void {
+  // Delete table on module uninstall.
+  $schema = Database::getConnection()->schema();
+  if ($schema->tableExists('event_log_track')) {
+    $schema->dropTable('event_log_track');
+  }
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function event_log_track_update_last_removed(): int {
+  return 9402;
+}
+
+/**
+ * Uninstall deprecated event_log_track_ui.
+ */
+function event_log_track_update_9403(): void {
+  \Drupal::service('module_installer')->uninstall(['event_log_track_ui']);
+}
+
+/**
+ * Import new event_log_track view.
+ */
+function event_log_track_update_9404(): void {
+  $config_path = \Drupal::service('extension.path.resolver')->getPath('module', 'event_log_track') . '/config/optional';
+  $source = new FileStorage($config_path);
+  $config_storage = \Drupal::service('config.storage');
+  $config_storage->write('views.view.event_log_track', $source->read('views.view.event_log_track'));
+}
+
+/**
+ * Recovery existing syslog config and set default stdout config.
+ */
+function event_log_track_update_9405(): void {
+  $config = \Drupal::configFactory()->getEditable('event_log_track.settings');
+  $data = $config->getRawData();
+  if (isset($data['format']) && isset($data['output_type'])) {
+    $data['syslog'] = [
+      'format' => $data['format'],
+      'output_type' => $data['output_type'],
+    ];
+    unset($data['format']);
+    unset($data['output_type']);
+  }
+  if (!isset($data['stdout']['format']) && !isset($data['stdout']['output_type'])) {
+    $file = \Drupal::service('extension.list.module')->getPath('event_log_track') . '/config/install/event_log_track.settings.yml';
+    $yaml = Yaml::parseFile($file);
+    $data['stdout'] = [
+      'format' => $yaml['stdout']['format'],
+      'output_type' => $yaml['stdout']['output_type'],
+    ];
+  }
+  $config->setData($data)->save();
+}

@@ -1,0 +1,7 @@
+event_log_track.settings_form:
+  path: '/admin/config/system/events-log-track'
+  defaults:
+    _form: '\Drupal\event_log_track\Form\EventsTrackForm'
+    _title: 'Event log track'
+  requirements:
+    _permission: 'administer site configuration'

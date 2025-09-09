@@ -1,0 +1,147 @@
+<?php
+
+/**
+ * @file
+ * Logs Group Membership entity CUD commands in the event_log_track module.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\group\Entity\GroupMembershipInterface;
+
+/**
+ * Implements hook_event_log_track_handlers().
+ */
+function event_log_track_group_membership_event_log_track_handlers(): array {
+  // Group membership event log handler.
+  $handlers['group_membership'] = [
+    'title' => t('Group membership'),
+    'operations' => [
+      'insert',
+      'update',
+      'delete',
+    ],
+  ];
+  return $handlers;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert().
+ *
+ * Supports Group 2.x.
+ */
+function event_log_track_group_membership_group_content_insert(EntityInterface $entity): void {
+  event_log_track_group_membership_group_relationship_insert($entity);
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert().
+ *
+ * Supports Group 3.x.
+ */
+function event_log_track_group_membership_group_relationship_insert(EntityInterface $entity): void {
+  if ($entity instanceof GroupMembershipInterface) {
+    $user = $entity->getEntity();
+    $group = $entity->getGroup();
+    $roles = array_column($entity->get("group_roles")->getValue(), 'target_id');
+    $roles = empty($roles) ? 'NULL' : implode(',', $roles);
+
+    $log = [
+      'type' => 'group_membership',
+      'operation' => 'insert',
+      'description' => t('%name (%uid) as %role in %group (%gid)', [
+        '%name' => $user->label(),
+        '%uid' => $user->id(),
+        '%role' => $roles,
+        '%group' => $group->label(),
+        '%gid' => $group->id(),
+      ]),
+      'ref_numeric' => $entity->id(),
+      'ref_char' => $entity->label(),
+    ];
+    event_log_track_insert($log);
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update().
+ *
+ * Supports Group 2.x.
+ */
+function event_log_track_group_membership_group_content_update(EntityInterface $entity): void {
+  event_log_track_group_membership_group_relationship_update($entity);
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update().
+ *
+ * Supports Group 3.x.
+ */
+function event_log_track_group_membership_group_relationship_update(EntityInterface $entity): void {
+  if ($entity instanceof GroupMembershipInterface) {
+    $user = $entity->getEntity();
+    $group = $entity->getGroup();
+
+    $original_roles = array_column($entity->original->get("group_roles")->getValue(), 'target_id');
+    $original_roles = empty($original_roles) ? 'NULL' : implode(',', $original_roles);
+
+    $roles = array_column($entity->get("group_roles")->getValue(), 'target_id');
+    $roles = empty($roles) ? 'NULL' : implode(',', $roles);
+
+    $log = [
+      'type' => 'group_membership',
+      'operation' => 'update',
+      'description' => t('%name (%uid) changed from %original to %role in %group (%gid)', [
+        '%name' => $user->label(),
+        '%uid' => $user->id(),
+        '%original' => $original_roles,
+        '%role' => $roles,
+        '%group' => $group->label(),
+        '%gid' => $group->id(),
+      ]),
+      'ref_numeric' => $entity->id(),
+      'ref_char' => $entity->label(),
+    ];
+    event_log_track_insert($log);
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_delete().
+ *
+ * Supports Group 2.x.
+ */
+function event_log_track_group_membership_group_content_delete(EntityInterface $entity): void {
+  event_log_track_group_membership_group_relationship_delete($entity);
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_delete().
+ *
+ * Supports Group 3.x.
+ */
+function event_log_track_group_membership_group_relationship_delete(EntityInterface $entity): void {
+  if ($entity instanceof GroupMembershipInterface) {
+    $uid = $entity->getEntityId();
+    $gid = $entity->getGroupId();
+
+    // In the event that the entire user or group was deleted, the referenced
+    // entities may no longer exist by the time this triggers, so we need to
+    // provide fallback labels.
+    $user_name = $entity->getEntity()?->label() ?? 'NULL';
+    $group_name = $entity->getGroup()?->label() ?? 'NULL';
+
+    $log = [
+      'type' => 'group_membership',
+      'operation' => 'delete',
+      'description' => t('%name (%uid) from %group (%gid)', [
+        '%name' => $user_name,
+        '%uid' => $uid,
+        '%group' => $group_name,
+        '%gid' => $gid,
+      ]),
+      'ref_numeric' => $entity->id(),
+      'ref_char' => $user_name,
+    ];
+    event_log_track_insert($log);
+  }
+}

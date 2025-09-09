@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * @file
+ * It records the users who clear cache.
+ */
+
+/**
+ * Implements hook_event_log_track_handlers().
+ */
+function event_log_track_clear_cache_event_log_track_handlers(): array {
+  $handlers = [];
+  // File event log handler.
+  $handlers['cache_clear'] = [
+    'title' => t('Cache Clear'),
+    'operations' => [
+      'cache_clear',
+    ],
+  ];
+  return $handlers;
+}
+
+/**
+ * When the cache is cleared, it is recorded who cleaned it.
+ */
+function event_log_track_clear_cache_cache_flush(): void {
+  $account = \Drupal::currentUser();
+  $log = [
+    'type' => 'cache_clear',
+    'operation' => 'cache_clear',
+    'description' => 'Cache cleared',
+    'ref_numeric' => $account->id(),
+    'ref_char' => $account->getAccountName(),
+  ];
+  event_log_track_insert($log);
+}

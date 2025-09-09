@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Logs configuration changes in the event_log_track module.
+ */
+
+/**
+ * Implements hook_event_log_track_handlers().
+ */
+function event_log_track_config_event_log_track_handlers(): array {
+  // Config event log handler.
+  $handlers['config'] = [
+    'title' => t('Configuration'),
+    'operations' => [
+      'save',
+      'delete',
+    ],
+  ];
+  return $handlers;
+}

@@ -1,0 +1,10 @@
+name: String Overrides
+type: module
+description: 'Provides a quick and easy way of replacing text.'
+configure: stringoverrides.translations_form.default
+core_version_requirement: ^10 || ^11
+
+# Information added by Drupal.org packaging script on 2025-07-15
+version: '2.0.0'
+project: 'stringoverrides'
+datestamp: 1752540360

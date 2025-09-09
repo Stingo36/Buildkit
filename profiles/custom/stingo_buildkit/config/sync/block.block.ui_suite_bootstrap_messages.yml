@@ -1,0 +1,22 @@
+uuid: 95521ebf-e237-466a-95c7-ca95e65c34c1
+langcode: en
+status: true
+dependencies:
+  module:
+    - system
+  theme:
+    - ui_suite_bootstrap
+_core:
+  default_config_hash: eGMtu_tn-04a7x0BhaXKifpmVrVSgCMBM2q4QqHkkjE
+id: ui_suite_bootstrap_messages
+theme: ui_suite_bootstrap
+region: header
+weight: -50
+provider: null
+plugin: system_messages_block
+settings:
+  id: system_messages_block
+  label: 'Status messages'
+  label_display: '0'
+  provider: system
+visibility: {  }

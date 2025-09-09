@@ -1,0 +1,4 @@
+services:
+  logger.eventlog.stdout:
+    class: Drupal\event_log_track_stdout\Logger\EventLogStdout
+    arguments: ['@config.factory', '@logger.log_message_parser', '@logger.factory', '@token']

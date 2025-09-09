@@ -1,0 +1,89 @@
+<?php
+
+/**
+ * @file
+ * Integrates ELT with syslog.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\user\Entity\User;
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function event_log_track_syslog_form_system_logging_settings_alter(&$form, FormStateInterface $form_state): void {
+
+  $config = \Drupal::configFactory()->getEditable('event_log_track.settings');
+
+  $form['event_log_track_format'] = [
+    '#type' => 'textarea',
+    '#title' => 'Events Log Track format',
+    '#default_value' => $config->get('syslog.format'),
+    '#weight' => 10,
+    '#required' => TRUE,
+  ];
+
+  if (\Drupal::moduleHandler()->moduleExists('token')) {
+    $form['event_log_track_format_tokens'] = [
+      '#theme' => 'token_tree_link',
+      '#token_types' => ['event-log'],
+      '#global_types' => TRUE,
+      '#click_insert' => TRUE,
+      '#weight' => 11,
+    ];
+  }
+
+  $form['event_log_track_output_type'] = [
+    '#type' => 'select',
+    '#title' => 'Events Log Track Output type',
+    '#default_value' => $config->get('syslog.output_type'),
+    '#options' => [
+      'watchdog' => t('Watchdog (default)'),
+      'syslog' => t('Raw Syslog'),
+    ],
+    '#description' => t('<strong>Note:</strong> The Raw Syslog option dumps output <em>exactly</em> as in ELT format above, so you need to add your own timestamp, IP, etc. using tokens.<br/>The Watchdog (default) option dumps output using the Syslog format with "message" field formatted using the ELT format above.'),
+    '#weight' => 12,
+  ];
+
+  $row = [
+    'type' => 'authorization',
+    'operation' => 'fail',
+    'description' => 'Unauthorized access attempt',
+    'created' => \Drupal::time()->getRequestTime(),
+    'severity' => 5,
+    'entity' => User::load(1),
+    'uid' => 1,
+    'ip' => '123.123.123.123',
+    'path' => '/some/admin/path',
+    'ref_char' => 'username',
+    'ref_numeric' => 0,
+  ];
+  $token_service = \Drupal::token();
+  $bubbleable_metadata = new BubbleableMetadata();
+  $output = $token_service->replace($config->get('syslog.format'), ['event-log' => $row], [], $bubbleable_metadata);
+
+  $form['example'] = [
+    '#type' => 'textarea',
+    '#title' => 'Example output based on above',
+    '#default_value' => $output,
+    '#disabled' => TRUE,
+    '#weight' => 12,
+  ];
+
+  $form['#submit'][] = 'event_log_track_syslog_logging_settings_submit';
+}
+
+/**
+ * Logging settings page submit hook.
+ *
+ * @throws Drupal\Core\Config\ConfigValueException
+ */
+function event_log_track_syslog_logging_settings_submit($form, FormStateInterface $form_state): void {
+  if (\Drupal::moduleHandler()->moduleExists('token')) {
+    \Drupal::configFactory()->getEditable('event_log_track.settings')
+      ->set('syslog.format', $form_state->getValue('event_log_track_format'))
+      ->set('syslog.output_type', $form_state->getValue('event_log_track_output_type'))
+      ->save();
+  }
+}

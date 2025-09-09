@@ -1,0 +1,12 @@
+name: Events Log Track Clear Cache
+description: 'When the cache is cleared, it is recorded who cleaned it.'
+type: module
+dependencies:
+  - event_log_track:event_log_track
+core_version_requirement: ^10 || ^11
+package: Logging
+
+# Information added by Drupal.org packaging script on 2025-05-13
+version: '4.0.2'
+project: 'events_log_track'
+datestamp: 1747150403

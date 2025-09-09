@@ -1,0 +1,14 @@
+_core:
+  default_config_hash: Ra1wCOv-XTOsjio08D1i49hzjcUlin66zuciiPtpV44
+disable_messages_enable: '1'
+disable_messages_exclude_users: ''
+disable_messages_filter_by_page: 0
+disable_messages_page_filter_paths: ''
+disable_messages_enable_debug: '0'
+disable_messages_debug_visible_div: '0'
+disable_messages_ignore_patterns: ''
+disable_messages_enable_permissions: ''
+disable_messages_ignore_exclude: ''
+disable_messages_ignore_case: '1'
+disable_messages_strip_html_tags: '1'
+disable_messages_ignore_regex: {  }

@@ -1,0 +1,13 @@
+name: Events Log Track Group
+description: 'Logs group CUD events performed by the user.'
+type: module
+dependencies:
+  - event_log_track:event_log_track
+  - group:group
+core_version_requirement: ^10 || ^11
+package: Logging
+
+# Information added by Drupal.org packaging script on 2025-05-13
+version: '4.0.2'
+project: 'events_log_track'
+datestamp: 1747150403

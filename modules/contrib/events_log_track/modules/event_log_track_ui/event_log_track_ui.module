@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Hooks for Overview page.
+ */
+
+/**
+ * Returns all existing event handlers.
+ *
+ * @return array
+ *   An array with the event log handlers.
+ */
+function event_log_track_ui_get_event_handlers(): array {
+  $handlers = drupal_static(__FUNCTION__);
+  if ($handlers === NULL) {
+    $handlers = Drupal::moduleHandler()->invokeAll('event_log_track_handlers');
+    \Drupal::moduleHandler()->alter('event_log_track_handlers', $handlers);
+  }
+  return $handlers;
+}

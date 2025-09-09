@@ -1,0 +1,14 @@
+name: Events Log Track UI
+description: 'Display UI for viewing event logs.'
+type: module
+dependencies:
+  - event_log_track:event_log_track
+core_version_requirement: ^10 || ^11
+package: Logging
+lifecycle: deprecated
+lifecycle_link: https://www.drupal.org/node/3442993
+
+# Information added by Drupal.org packaging script on 2025-05-13
+version: '4.0.2'
+project: 'events_log_track'
+datestamp: 1747150403

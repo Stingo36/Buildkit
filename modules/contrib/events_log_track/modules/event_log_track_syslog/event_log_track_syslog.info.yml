@@ -1,0 +1,14 @@
+name: Events Log Track Syslog
+description: 'Integrate ELT with Syslog.'
+type: module
+dependencies:
+  - event_log_track:event_log_track
+  - token:token
+  - drupal:syslog
+core_version_requirement: ^10 || ^11
+package: Logging
+
+# Information added by Drupal.org packaging script on 2025-05-13
+version: '4.0.2'
+project: 'events_log_track'
+datestamp: 1747150403

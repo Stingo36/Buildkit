@@ -1,0 +1,11 @@
+{#
+/**
+ * Theme override for 'select' elements.
+ */
+#}
+<select{{ attributes.addClass('form-select') }}>
+  {% for option in options %}
+    <option value="{{ option.value }}" {{ option.selected ? 'selected' }}>{{ option.label }}</option>
+  {% endfor %}
+</select>
+{{ children }}

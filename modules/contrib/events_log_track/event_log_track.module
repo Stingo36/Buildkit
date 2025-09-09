@@ -1,0 +1,652 @@
+<?php
+
+/**
+ * @file
+ * Track the logs of form submissions or other actions that performed by user.
+ */
+
+use Drupal\Component\Utility\Xss;
+use Drupal\Core\Datetime\Entity\DateFormat;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Installer\InstallerKernel;
+use Drupal\Core\Language\LanguageInterface;
+use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\Core\Render\Element;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+use Drupal\user\Entity\User;
+
+/**
+ * Implements hook_help().
+ */
+function event_log_track_help($route_name, RouteMatchInterface $route_match) {
+  if ($route_name == 'help.page.event_log_track') {
+    $output = '<h3>' . t('About') . '</h3>';
+    $output .= '<p>' . t("You can track logs of specific events that you'd like to log. The events  by the user (using the forms) are saved in the database and can be viewed on the page admin/reports/events-track. You could use this to track number of times the CUD operation performed by which users. This module required by: Events Log Track User Authentication, Events Log Track Menu, Events Log Track Node, Events Log Track Taxonomy, Events Log Track User.") . '</p>';
+    $output .= '<h3>' . t('Uses') . '</h3>';
+    $output .= '<dl>';
+    $output .= '<dt>' . t('Events Log Track Menu') . '</dt>';
+    $output .= '<dd>' . t('Using this submodule you can logs menu CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+    $output .= '</dl>';
+    $output .= '<dl>';
+    $output .= '<dt>' . t('Events Log Track Node') . '</dt>';
+    $output .= '<dd>' . t('Using this submodule you can logs node CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+    $output .= '</dl>';
+    $output .= '<dl>';
+    $output .= '<dt>' . t('Events Log Track Taxonomy') . '</dt>';
+    $output .= '<dd>' . t('Using this submodule you can logs taxonomy vocabulary and term CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+    $output .= '</dl>';
+    $output .= '<dl>';
+    $output .= '<dt>' . t('Events Log Track User') . '</dt>';
+    $output .= '<dd>' . t('Using this submodule you can logs user CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+    $output .= '</dl>';
+    $output .= '<dl>';
+    $output .= '<dt>' . t('Events Log Track User Authentication') . '</dt>';
+    $output .= '<dd>' . t('Using this submodule you can logs user authentication (login logout and request password). This module requires: Events Log Track.') . '</dd>';
+    $output .= '</dl>';
+
+    return $output;
+  }
+}
+
+/**
+ * Inserts the log record in the event log track. Sets the lid.
+ *
+ * @param array $log
+ *   The log record to be saved. This record contains the following fields:
+ *   - {string} type
+ *     The event type. This is usually the object type that is described by this
+ *     event. Example: 'node' or 'user'. Required.
+ *   - {string} operation
+ *     The operation being performed. Example: 'insert'. Required.
+ *   - {string} description
+ *     A textual description of the event. Required.
+ *   - {string} ref_numeric
+ *     Reference to numeric id. Optional.
+ *   - {string} ref_char
+ *     Reference to alphabetical id. Optional.
+ */
+function event_log_track_insert(array &$log): void {
+  if (InstallerKernel::installationAttempted()) {
+    // Ignore logs during Drupal installation.
+    return;
+  }
+
+  $config = \Drupal::config('event_log_track.settings');
+  if (PHP_SAPI === 'cli' && $config->get('log_cli') !== TRUE) {
+    return;
+  }
+
+  if (empty($log['created'])) {
+    $log['created'] = \Drupal::time()->getRequestTime();
+  }
+
+  if (empty($log['uid'])) {
+    $account = \Drupal::currentUser();
+    $log['uid'] = $account->id();
+  }
+
+  $ip = Drupal::request()->getClientIp();
+  if (empty($log['ip']) && !empty($ip)) {
+    $log['ip'] = $ip;
+  }
+
+  if (empty($log['path'])) {
+    if (PHP_SAPI === 'cli') {
+      $log['path'] = 'cli';
+    }
+    else {
+      $log['path'] = Url::fromRoute('<current>')->getInternalPath();
+    }
+  }
+
+  if (empty($log['ref_numeric'])) {
+    $log['ref_numeric'] = NULL;
+  }
+
+  if (empty($log['ref_char'])) {
+    $log['ref_char'] = NULL;
+  }
+  else {
+    $log['ref_char'] = Xss::filterAdmin($log['ref_char']);
+  }
+
+  // Remove tags from description.
+  $log['description'] = strip_tags($log['description']);
+
+  // Allow other modules to alter the log.
+  \Drupal::moduleHandler()->alter('event_log_track', $log);
+
+  if (\Drupal::moduleHandler()->moduleExists('event_log_track_syslog')) {
+    $elog_service = \Drupal::service('logger.eventlog');
+    $elog_service->logEvent($log);
+  }
+
+  if (\Drupal::moduleHandler()->moduleExists('event_log_track_stdout')) {
+    $elog_service = \Drupal::service('logger.eventlog.stdout');
+    $elog_service->logEvent($log);
+  }
+
+  $config = \Drupal::config('event_log_track.settings');
+  try {
+    if (!$config->get('disable_db_logs')) {
+      if (empty($log['lid'])) {
+        \Drupal::database()->insert('event_log_track')
+          ->fields([
+            'type' => $log['type'],
+            'operation' => $log['operation'],
+            'description' => $log['description'],
+            'created' => $log['created'],
+            'uid' => $log['uid'],
+            'ip' => $log['ip'],
+            'path' => $log['path'],
+            'ref_char' => $log['ref_char'],
+            'ref_numeric' => $log['ref_numeric'],
+          ])
+          ->execute();
+      }
+      else {
+        \Drupal::database()->update('event_log_track')
+          ->fields([
+            'type' => $log['type'],
+            'operation' => $log['operation'],
+            'description' => $log['description'],
+            'created' => $log['created'],
+            'uid' => $log['uid'],
+            'ip' => $log['ip'],
+            'path' => $log['path'],
+            'ref_char' => $log['ref_char'],
+            'ref_numeric' => $log['ref_numeric'],
+          ])
+          ->condition('lid', $log['lid'])
+          ->execute();
+      }
+    }
+  }
+  catch (\Exception $e) {
+    // Error saving log.
+  }
+}
+
+/**
+ * Implements hook_cron().
+ */
+function event_log_track_cron(): void {
+  $config = \Drupal::config('event_log_track.settings');
+  if ($config->get('enable_log_deletion')) {
+    $event_log_track_service = \Drupal::service('event_log_track.api');
+    $old_record = $event_log_track_service->getOldRecords();
+    if (!empty($old_record)) {
+      $event_log_track_service->deleteOldRecords($old_record);
+    }
+  }
+}
+
+/**
+ * Get the number of sessions belonging to a user.
+ *
+ * @param int $uid
+ *   The user ID.
+ *
+ * @return int
+ *   number of sessions if succeed. -1 if failed.
+ */
+function _event_log_track_session_count(int $uid): int {
+  try {
+    $count_session = \Drupal::database()->select('sessions', 's')
+      ->fields('s', ['sid'])
+      ->condition('s.uid', $uid)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    return (int) $count_session;
+  }
+  // Given a negative 1 as the result
+  // to indicate a failure.
+  catch (\Exception) {
+    return -1;
+  }
+}
+
+/**
+ * Process the batches.
+ */
+function _event_log_track_process_old_records($data_chunk, &$context): void {
+  $db = \Drupal::database();
+  $db->delete('event_log_track')
+    ->condition('lid', $data_chunk, 'IN')
+    ->execute();
+}
+
+/**
+ * Implements hook_views_data().
+ */
+function event_log_track_views_data(): array {
+  // Define the return array.
+  $data = [];
+  $data['event_log_track'] = [];
+
+  // Describe a single database table named news_subs.
+  $data['event_log_track']['table'] = [
+    // Human-readable name of this table used in the Views UI to prefix fields,
+    // filters, etc. Example: "News subscriptions: Email". This string should
+    // be translatable.
+    'group' => t('Event Log Track'),
+    // Name of the module that provides the table schema.
+    'provider' => 'event_log_track',
+    // A table can be a "base" table, meaning that in Views you can use it as
+    // base for a View. Non-base tables can be associated to a base table via
+    // a relationship. The primary table for your custom data should be a base
+    // table. Add the "base" key with the following properties:
+    'base' => [
+      // Identifier (primary) field in this table for Views.
+      'field' => 'lid',
+      // Label in the UI.
+      'title' => t('Event Log Track'),
+      // Longer description in the UI. Required.
+      'help' => t('Event Log track - LID'),
+    ],
+  ];
+
+  $data['event_log_track']['table']['join'] = [
+    // The key of this inner array is the name of the table to join to.
+    'users_field_data' => [
+      'left_field' => 'uid',
+      'field' => 'uid',
+    ],
+  ];
+
+  // Relationships.
+  $data['event_log_track']['uid'] = [
+    'title' => t('User'),
+    'help' => t('User entity.'),
+    'relationship' => [
+      'base' => 'users_field_data',
+      'base field' => 'uid',
+      'id' => 'standard',
+      'label' => t('User'),
+    ],
+  ];
+
+  // Fields.
+  $data['event_log_track']['lid'] = [
+    'title' => t('LID'),
+    'help' => t('Log ID.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'argument' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  $data['event_log_track']['type'] = [
+    'title' => t('Type'),
+    'help' => t('Type of event.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'in_operator',
+      'options callback' => '\Drupal\event_log_track\EventLogTrackApi::getHandlerOptions',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  $data['event_log_track']['operation'] = [
+    'title' => t('Operation'),
+    'help' => t('Type of operation of the event.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'in_operator',
+      'options callback' => '\Drupal\event_log_track\EventLogTrackApi::getHandlerOptionsOperations',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+  ];
+
+  $data['event_log_track']['ref_char'] = [
+    'title' => t('Ref Char'),
+    'help' => t('Ref Char.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+    'argument' => [
+      'id' => 'string',
+    ],
+  ];
+
+  $data['event_log_track']['ref_numeric'] = [
+    'title' => t('Ref Numeric'),
+    'help' => t('Ref Number.'),
+    'field' => [
+      'id' => 'numeric',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'numeric',
+    ],
+    'argument' => [
+      'id' => 'numeric',
+    ],
+  ];
+
+  $data['event_log_track']['description'] = [
+    'title' => t('Description'),
+    'help' => t('Description of the event.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+    'argument' => [
+      'id' => 'string',
+    ],
+  ];
+
+  $data['event_log_track']['ip'] = [
+    'title' => t('IP'),
+    'help' => t('IP Address of user who made the event.'),
+    'field' => [
+      'id' => 'standard',
+    ],
+    'sort' => [
+      'id' => 'standard',
+    ],
+    'filter' => [
+      'id' => 'string',
+    ],
+    'argument' => [
+      'id' => 'string',
+    ],
+  ];
+
+  $data['event_log_track']['created'] = [
+    'title' => t('Created'),
+    'help' => t('Event log created date'),
+    'field' => [
+      'id' => 'date',
+    ],
+    'sort' => [
+      'id' => 'date',
+    ],
+    'filter' => [
+      'id' => 'date',
+    ],
+    'argument' => [
+      'id' => 'date',
+    ],
+  ];
+
+  return $data;
+}
+
+/**
+ * Implements hook_token_info().
+ */
+function event_log_track_token_info(): array {
+  $type = [
+    'name' => t('Event Log'),
+    'description' => t('Tokens related to event log'),
+    'needs-data' => 'event-log',
+  ];
+
+  // Core tokens for media.
+  $event['type'] = [
+    'name' => t('Type'),
+  ];
+  $event['operation'] = [
+    'name' => t('Operation'),
+  ];
+  $event['description'] = [
+    'name' => t('Description'),
+  ];
+  $event['created'] = [
+    'name' => t('Date action was taken'),
+    'type' => 'date',
+  ];
+  $event['entity'] = [
+    'name' => t('Entity this action was taken against, if any'),
+    'type' => 'entity',
+  ];
+  $event['user'] = [
+    'name' => t('User who made the action'),
+    'type' => 'user',
+  ];
+  $event['session_duration'] = [
+    'name' => t('Session duration'),
+    'description' => t('Duration in seconds; 0 if anonymous'),
+  ];
+  $event['ip'] = [
+    'name' => t('IP Address of user'),
+  ];
+  $event['path'] = [
+    'name' => t('Entity bundle name'),
+  ];
+  $event['severity'] = [
+    'name' => t('Severity code (RFC 5424)'),
+  ];
+  $event['ref_char'] = [
+    'name' => t('Reference ID - readable'),
+  ];
+  $event['ref_numeric'] = [
+    'name' => t('Reference ID'),
+  ];
+
+  return [
+    'types' => ['event-log' => $type],
+    'tokens' => ['event-log' => $event],
+  ];
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function event_log_track_tokens($type, $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata): array {
+  $token_service = \Drupal::token();
+
+  $langcode = $options['langcode'] ?? LanguageInterface::LANGCODE_DEFAULT;
+
+  $replacements = [];
+  if ($type === 'event-log' && !empty($data['event-log'])) {
+    $event = $data['event-log'];
+
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'type':
+          $replacements[$original] = $event['type'];
+          break;
+
+        case 'operation':
+          $replacements[$original] = $event['operation'];
+          break;
+
+        case 'description':
+          $replacements[$original] = $event['description'];
+          break;
+
+        case 'severity':
+          $replacements[$original] = $event['severity'];
+          break;
+
+        case 'ip':
+          $replacements[$original] = $event['ip'];
+          break;
+
+        case 'path':
+          $replacements[$original] = $event['path'];
+          break;
+
+        case 'ref_numeric':
+          $replacements[$original] = $event['ref_numeric'];
+          break;
+
+        case 'ref_char':
+          $replacements[$original] = $event['ref_char'];
+          break;
+
+        case 'user':
+          $account = User::load($event['uid']);
+          $bubbleable_metadata->addCacheableDependency($account);
+          $replacements[$original] = $account->label();
+          break;
+
+        case 'session_duration':
+          if ($event['uid'] > 0) {
+            // The user is not anonymous; calculate duration from login time.
+            $account = User::load($event['uid']);
+            $replacements[$original] = \Drupal::time()->getRequestTime() - $account->getLastLoginTime();
+          }
+          else {
+            // Literal '0' for string output.
+            $replacements[$original] = '0';
+          }
+          break;
+
+        case 'entity':
+          $entity = $event['entity'];
+          $bubbleable_metadata->addCacheableDependency($entity);
+          $replacements[$original] = $entity->label();
+          break;
+
+        case 'created':
+          $date_format = DateFormat::load('medium');
+          $bubbleable_metadata->addCacheableDependency($date_format);
+          $replacements[$original] = \Drupal::service('date.formatter')
+            ->format($event['created'], $date_format->id(), '', NULL, $langcode);
+          break;
+      }
+    }
+
+    if ($author_tokens = $token_service->findWithPrefix($tokens, 'user')) {
+      $account = User::load($event['uid']);
+      $replacements += $token_service->generate('user', $author_tokens, ['user' => $account], $options, $bubbleable_metadata);
+    }
+
+    if ($entity_tokens = $token_service->findWithPrefix($tokens, 'entity')) {
+      $entity = $event['entity'];
+      $replacements += $token_service->generate('entity', $entity_tokens, ['entity' => $entity], $options, $bubbleable_metadata);
+    }
+
+    if ($created_tokens = $token_service->findWithPrefix($tokens, 'created')) {
+      $replacements += $token_service->generate('date', $created_tokens, ['date' => $event['created']], $options, $bubbleable_metadata);
+    }
+  }
+
+  return $replacements;
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function event_log_track_form_alter(&$form, FormStateInterface $form_state, $form_id): void {
+  // Add submit callback to ANY form action.
+  event_log_track_add_submit_handler($form, 'event_log_track_form_submit');
+}
+
+/**
+ * Adds a submit handler to all submit hooks in the form tree.
+ *
+ * @param array &$element
+ *   A form element or the form itself.
+ * @param string $callback
+ *   The callback to be added.
+ */
+function event_log_track_add_submit_handler(array &$element, string $callback): void {
+  if (array_key_exists("#submit", $element)) {
+    if ((!empty($element['#type']) && $element['#type'] == 'form') || count($element["#submit"])) {
+      $element["#submit"][] = $callback;
+    }
+  }
+  $keys = Element::children($element);
+  foreach ($keys as $key) {
+    if (is_array($element[$key])) {
+      event_log_track_add_submit_handler($element[$key], $callback);
+    }
+  }
+}
+
+/**
+ * Returns all existing event handlers.
+ *
+ * @return array
+ *   An array with the event log handlers.
+ */
+function event_log_track_get_event_handlers(): array {
+  $handlers = drupal_static(__FUNCTION__);
+  if ($handlers === NULL) {
+    $handlers = Drupal::moduleHandler()->invokeAll('event_log_track_handlers');
+    \Drupal::moduleHandler()->alter('event_log_track_handlers', $handlers);
+  }
+  return $handlers;
+}
+
+/**
+ * Form submission callback.
+ */
+function event_log_track_form_submit(&$form, FormStateInterface $form_state): void {
+  if ($form_state->hasTemporaryValue('event_log_track_logged')) {
+    // Some forms are submitted twice, for instance the node_form.
+    // We will only call the submit callback once.
+    return;
+  }
+
+  $form_state->setTemporaryValue('event_log_track_logged', TRUE);
+
+  // Get form id.
+  $form_id = $form['#form_id'];
+
+  // Dispatch the submission to the correct event handler.
+  $handlers = event_log_track_get_event_handlers();
+  foreach ($handlers as $type => $handler) {
+    $dispatch = FALSE;
+    if (!empty($handler['form_ids']) && in_array($form_id, $handler['form_ids'])) {
+      $dispatch = TRUE;
+    }
+    elseif (!empty($handler['form_ids_regexp'])) {
+      foreach ($handler['form_ids_regexp'] as $regexp) {
+        if (preg_match($regexp, $form_id)) {
+          $dispatch = TRUE;
+          break;
+        }
+      }
+    }
+
+    if ($dispatch) {
+      // Dispatch!
+      $function = $handler['form_submit_callback'];
+      if (function_exists($function)) {
+        $log = $function($form, $form_state, $form_id);
+        if (!empty($log)) {
+          // Log the event.
+          $log['type'] = $type;
+          event_log_track_insert($log);
+        }
+      }
+    }
+  }
+}

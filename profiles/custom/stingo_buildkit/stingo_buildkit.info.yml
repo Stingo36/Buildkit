@@ -1,0 +1,5 @@
+name: 'Stingo Buildkit'
+type: profile
+description: 'Custom install profile for Stingo projects.'
+core_version_requirement: ^10
+config_install: true
