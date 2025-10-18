@@ -1,0 +1,94 @@
+
+/* 🌐 Modern Navbar Styling */
+.modern-nav {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+/* 🎨 Modern Links */
+.modern-nav .nav-link {
+  position: relative;
+  color: #212529;
+  font-weight: 500;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.modern-nav .nav-link:hover {
+  color: #0d6efd;
+  transform: translateY(-1px);
+}
+
+/* ✨ Underline animation for active link */
+.modern-nav .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  width: 0%;
+  height: 2px;
+  background-color: #0d6efd;
+  transition: all 0.25s ease-in-out;
+  transform: translateX(-50%);
+}
+
+.modern-nav .nav-link:hover::after,
+.modern-nav .nav-link.active::after {
+  width: 60%;
+}
+
+/* 📱 Dropdown menus */
+.dropdown-menu {
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 10rem;
+}
+
+.dropdown-menu a {
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: #212529;
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dropdown-menu a:hover {
+  background-color: #f1f3f5;
+  color: #0d6efd;
+}
+
+/* 🌙 Dark Mode */
+[data-bs-theme="dark"] .modern-nav .nav-link {
+  color: #e9ecef;
+}
+
+[data-bs-theme="dark"] .modern-nav .nav-link:hover {
+  color: #66b2ff;
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+  background-color: #212529;
+  border: 1px solid #343a40;
+}
+
+[data-bs-theme="dark"] .dropdown-menu a {
+  color: #e9ecef;
+}
+
+[data-bs-theme="dark"] .dropdown-menu a:hover {
+  background-color: #343a40;
+  color: #9ec5fe;
+}
+
+/* 🧭 Fade dropdown animation */
+.fade-in {
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}

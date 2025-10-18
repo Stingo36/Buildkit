@@ -1,0 +1,27 @@
+uuid: f79b680d-c967-4cc2-a33a-94776fb40ded
+langcode: en
+status: true
+dependencies:
+  config:
+    - system.menu.main
+  module:
+    - system
+  theme:
+    - ui_suite_bootstrap
+_core:
+  default_config_hash: LadoId96Gn4tLoNqpVmAZLY0eeXzIwabIQIw_1D6keg
+id: ui_suite_bootstrap_main_menu
+theme: ui_suite_bootstrap
+region: navigation_collapsible
+weight: 10
+provider: null
+plugin: 'system_menu_block:main'
+settings:
+  id: 'system_menu_block:main'
+  label: 'Main navigation'
+  label_display: '0'
+  provider: system
+  level: 1
+  depth: 2
+  expand_all_items: false
+visibility: {  }

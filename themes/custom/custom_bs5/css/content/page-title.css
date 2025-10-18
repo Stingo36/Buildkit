@@ -1,0 +1,44 @@
+.modern-title-wrapper {
+    margin: 2.5rem 0 1.5rem;
+    text-align: center;
+}
+
+@media (min-width: 768px) {
+    .modern-title-wrapper {
+        text-align: left;
+    }
+}
+
+h1.modern-page-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #1f1f1f;
+    font-family: 'Heebo', 'Segoe UI', sans-serif;
+    margin: 0;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.modern-title-underline {
+    width: 40px;
+    height: 3px;
+    background-color: #ccc;
+    border-radius: 1.5px;
+    margin-top: 0.75rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (min-width: 768px) {
+    .modern-title-underline {
+        margin-left: 0;
+    }
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

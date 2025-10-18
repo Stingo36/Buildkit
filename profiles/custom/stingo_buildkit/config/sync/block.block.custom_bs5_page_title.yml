@@ -1,0 +1,20 @@
+uuid: bd21802b-6c09-4563-a4e8-865f5a01ee07
+langcode: en
+status: true
+dependencies:
+  theme:
+    - custom_bs5
+_core:
+  default_config_hash: qYppfxaWSy6BwGNKdMch1PeUA24PlRTt39jQft6A6Kg
+id: custom_bs5_page_title
+theme: custom_bs5
+region: content
+weight: -6
+provider: null
+plugin: page_title_block
+settings:
+  id: page_title_block
+  label: 'Page title'
+  label_display: '0'
+  provider: core
+visibility: {  }

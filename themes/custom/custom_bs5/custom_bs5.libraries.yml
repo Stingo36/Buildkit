@@ -1,0 +1,59 @@
+# ============================================================
+# Custom Bootstrap 5 Theme — Asset Library Definitions
+# ============================================================
+# This file defines CSS (and optionally JS) assets used by
+# individual Twig templates or theme components.
+# Each library can be attached via:
+#   {{ attach_library('custom_bs5/library_name') }}
+# ============================================================
+
+
+# --------------------------------------------
+# Navigation Styles — Menus, Dropdowns, etc.
+# --------------------------------------------
+menu:
+  css:
+    theme:
+      css/navigation/menu.css: {}
+
+# --------------------------------------------
+# Local Tasks (Tabs) — e.g., View / Edit / Delete
+# --------------------------------------------
+menu_local_tasks:
+  css:
+    theme:
+      css/navigation/menu-local-task.css: {}
+
+
+# --------------------------------------------
+# Form Styling — Input Elements
+# --------------------------------------------
+input:
+  css:
+    theme:
+      css/form/input.css: {}
+
+# --------------------------------------------
+# Form Components — Buttons, Selects, Radios, etc.
+# --------------------------------------------
+form_elements:
+  css:
+    theme:
+      css/form/form-element.css: {}
+
+
+# --------------------------------------------
+# Node Add List — Custom Content Type Cards
+# --------------------------------------------
+node_add_list:
+  css:
+    theme:
+      css/content-edit/node-add-list.css: {}
+
+# --------------------------------------------
+# Page Title  — Page title styling
+# --------------------------------------------
+page_title:
+  css:
+    theme:
+      css/content/page-title.css: {}

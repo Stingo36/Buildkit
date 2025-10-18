@@ -1,0 +1,19 @@
+{{ attach_library('custom_bs5/menu_local_tasks') }} 
+
+{% if primary %}
+  <nav class="tabs-wrapper tabs-primary" aria-labelledby="primary-tabs-title" data-drupal-nav-tabs>
+    <h2 id="primary-tabs-title" class="visually-hidden">{{ 'Primary tabs'|t }}</h2>
+    <ul class="nav flex-column flex-md-row" data-drupal-nav-tabs-target>
+      {{ primary }}
+    </ul>
+  </nav>
+{% endif %}
+
+{% if secondary %}
+  <nav class="tabs-wrapper tabs-secondary" aria-labelledby="secondary-tabs-title" data-drupal-nav-tabs>
+    <h2 id="secondary-tabs-title" class="visually-hidden">{{ 'Secondary tabs'|t }}</h2>
+    <ul class="nav flex-column flex-md-row" data-drupal-nav-tabs-target>
+      {{ secondary }}
+    </ul>
+  </nav>
+{% endif %}

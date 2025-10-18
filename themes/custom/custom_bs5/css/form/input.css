@@ -1,0 +1,112 @@
+
+
+/* Make Drupal link-buttons look like .btn-modern */
+.form-actions a.button {
+  display: inline-block;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  transition: all 0.25s ease-in-out;
+  cursor: pointer;
+  color: #fff;                   /* force white text */
+  text-decoration: none;         /* remove underline */
+}
+
+/* Map "danger" link button to the red gradient */
+.form-actions a.button.button--danger {
+  background: linear-gradient(135deg, #e74a3b, #be2617);
+}
+.form-actions a.button.button--danger:hover {
+  background: linear-gradient(135deg, #c53b2e, #921c11);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(190, 38, 23, 0.25);
+  color: #fff;
+}
+
+/* (Optional) If you ever use plain .button (secondary) links */
+.form-actions a.button:not(.button--danger) {
+  background: #6c757d;
+}
+.form-actions a.button:not(.button--danger):hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+  color: #fff;
+}
+
+
+
+
+
+
+
+/* --------------------------
+   General Input & Selects
+--------------------------- */
+.form-control,
+.form-select {
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #ced4da;
+  transition: all 0.2s ease-in-out;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Checkbox & radio size tweak */
+.form-check-input {
+  width: 1.1em;
+  height: 1.1em;
+  cursor: pointer;
+}
+
+/* --------------------------
+   Modern Button Styles
+--------------------------- */
+.btn-modern {
+  border-radius: 0.5rem;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  transition: all 0.25s ease-in-out;
+  cursor: pointer;
+  color: #fff; /* always white text */
+}
+
+/* Primary */
+.btn-modern-primary {
+  background: linear-gradient(135deg, #4e73df, #224abe);
+}
+.btn-modern-primary:hover {
+  background: linear-gradient(135deg, #3757c9, #19388f);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 74, 190, 0.25);
+  color: #fff; /* lock white text */
+}
+
+/* Danger */
+.btn-modern-danger {
+  background: linear-gradient(135deg, #e74a3b, #be2617);
+}
+.btn-modern-danger:hover {
+  background: linear-gradient(135deg, #c53b2e, #921c11);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(190, 38, 23, 0.25);
+  color: #fff; /* lock white text */
+}
+
+/* Secondary */
+.btn-modern-secondary {
+  background: #6c757d;
+}
+.btn-modern-secondary:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+  color: #fff; /* lock white text */
+}

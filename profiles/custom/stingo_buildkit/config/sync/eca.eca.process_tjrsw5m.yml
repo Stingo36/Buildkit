@@ -1,0 +1,13 @@
+uuid: c17a7173-b2a7-457c-94d4-bc77f28b1c25
+langcode: en
+status: true
+dependencies: {  }
+id: process_tjrsw5m
+modeller: bpmn_io
+label: noname
+version: ''
+weight: null
+events: {  }
+conditions: {  }
+gateways: {  }
+actions: {  }

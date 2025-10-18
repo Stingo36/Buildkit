@@ -1,0 +1,26 @@
+{#
+/**
+ * @file
+ * Minimalist theme override for page titles.
+ *
+ * Available variables:
+ * - title_attributes: HTML attributes for the page title element.
+ * - title_prefix: Additional output populated by modules.
+ * - title: The page title, for use in the actual content.
+ * - title_suffix: Additional output populated by modules.
+ */
+#}
+
+{{ attach_library('custom_bs5/page_title') }}
+{{ title_prefix }}
+
+{% if title|render|striptags|trim %}
+  <div class="modern-title-wrapper">
+    <h1{{ title_attributes.addClass('modern-page-title') }}>
+      {{ title }}
+    </h1>
+    {# <div class="modern-title-underline"></div> #}
+  </div>
+{% endif %}
+
+{{ title_suffix }}

@@ -1,0 +1,6 @@
+/* Make labels bold with spacing */
+.form-item label {
+  font-weight: 600;        /* Bold */
+  margin-bottom: 0.35rem;  /* Space below label */
+  display: inline-block;   /* Ensures margin applies */
+}

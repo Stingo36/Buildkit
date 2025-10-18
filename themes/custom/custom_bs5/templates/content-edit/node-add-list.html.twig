@@ -1,0 +1,25 @@
+
+
+{{ attach_library('custom_bs5/node_add_list') }}
+
+{% if types is not empty %}
+  <div class="node-type-grid">
+    {% for type in types %}
+      <div class="node-type-card">
+        <div>
+          <h3>{{ type.add_link }}</h3>
+          <p>{{ type.description }}</p>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+{% else %}
+  <div class="alert alert-warning mt-3">
+    {% set create_content = path('node.type_add') %}
+    {% trans %}
+      You have not created any content types yet.
+      Go to the <a href="{{ create_content }}" class="alert-link">content type creation page</a> to add a new content type.
+    {% endtrans %}
+  </div>
+{% endif %}

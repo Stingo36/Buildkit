@@ -1,0 +1,39 @@
+
+/* menu-local-tasks.html.twig */
+.tabs-wrapper {
+  margin-bottom: 1rem;
+  padding-top: 0.5rem;
+}
+
+.tabs-wrapper .nav {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.tabs-wrapper .nav .nav-link {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #222;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 0.25rem 0.25rem 0 0;
+  transition: all 0.2s ease-in-out;
+}
+
+.tabs-wrapper .nav .nav-link:hover {
+  background-color: #f8f9fa;
+  border-color: #e0e0e0;
+}
+
+.tabs-wrapper .nav .nav-link.active {
+  font-weight: 600;
+  border-bottom: 2px solid #333;
+  background-color: #f8f9fa;
+}

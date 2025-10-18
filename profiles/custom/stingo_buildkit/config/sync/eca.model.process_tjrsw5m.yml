@@ -1,0 +1,26 @@
+uuid: 22df226e-251e-4ffc-a7c2-df2b5a1e2493
+langcode: en
+status: true
+dependencies:
+  config:
+    - eca.eca.process_tjrsw5m
+id: process_tjrsw5m
+label: noname
+tags:
+  - untagged
+documentation: ''
+filename: ''
+modeldata: |
+  <?xml version="1.0" encoding="UTF-8"?>
+  <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:qa="http://some-company/schema/bpmn/qa" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+    <bpmn2:process id="Process_tJrSw5m" isExecutable="true">
+      <bpmn2:startEvent id="Event_0pus1f9" />
+    </bpmn2:process>
+    <bpmndi:BPMNDiagram id="sid-c22ef4cc-be11-4844-a98a-204302ee9864">
+      <bpmndi:BPMNPlane id="sid-de1cf005-67a9-436d-9c78-20c0ca232f62" bpmnElement="Process_tJrSw5m">
+        <bpmndi:BPMNShape id="Event_0pus1f9_di" bpmnElement="Event_0pus1f9">
+          <dc:Bounds x="322" y="202" width="36" height="36" />
+        </bpmndi:BPMNShape>
+      </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+  </bpmn2:definitions>

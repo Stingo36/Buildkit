@@ -1,0 +1,22 @@
+uuid: a08be561-c33a-4097-93bb-6b05d037350d
+langcode: en
+status: true
+dependencies:
+  module:
+    - system
+  theme:
+    - custom_bs5
+_core:
+  default_config_hash: 9LdMj38y4GDi23GrIUtIZIV1bJEn1C47N19jrswvcLc
+id: custom_bs5_messages
+theme: custom_bs5
+region: content
+weight: -7
+provider: null
+plugin: system_messages_block
+settings:
+  id: system_messages_block
+  label: Messages
+  label_display: '0'
+  provider: system
+visibility: {  }

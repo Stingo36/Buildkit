@@ -1,0 +1,22 @@
+uuid: ec07b099-fde2-4a11-879c-8898336538f5
+langcode: en
+status: true
+dependencies:
+  module:
+    - help
+  theme:
+    - custom_bs5
+_core:
+  default_config_hash: S0Y16qIQfKiOEzWlddOGk3u_BKwAruAheA8VVFfGbLc
+id: custom_bs5_help
+theme: custom_bs5
+region: content
+weight: -3
+provider: null
+plugin: help_block
+settings:
+  id: help_block
+  label: Help
+  label_display: '0'
+  provider: help
+visibility: {  }

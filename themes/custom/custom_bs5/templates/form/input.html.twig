@@ -1,0 +1,55 @@
+{#
+/**
+ * Theme override for 'input' elements.
+ */
+#}
+
+{{ attach_library('custom_bs5/input') }}
+
+
+{% set base_classes = [] %}
+
+{# Text-like inputs -> form-control #}
+{% if attributes.hasClass('form-text') or
+      attributes.hasClass('form-email') or
+      attributes.hasClass('form-url') or
+      attributes.hasClass('form-search') or
+      attributes.hasClass('form-tel') or
+      attributes.hasClass('form-number') or
+      attributes.hasClass('form-date') or
+      attributes.hasClass('form-time') or
+      attributes.hasClass('form-datetime-local') or
+      attributes.hasClass('form-month') or
+      attributes.hasClass('form-week') or
+      attributes.hasClass('form-file') or
+      attributes.hasClass('form-password') %}
+  {% set base_classes = base_classes|merge(['form-control']) %}
+{% endif %}
+
+{# Checkbox and radio -> form-check-input #}
+{% if attributes.hasClass('form-checkbox') or attributes.hasClass('form-radio') %}
+  {% set base_classes = base_classes|merge(['form-check-input']) %}
+{% endif %}
+
+{# Range input -> form-range #}
+{% if attributes.hasClass('form-range') %}
+  {% set base_classes = base_classes|merge(['form-range']) %}
+{% endif %}
+
+{# Errors -> is-invalid #}
+{% if attributes.hasClass('error') %}
+  {% set base_classes = base_classes|merge(['is-invalid']) %}
+{% endif %}
+
+{# Buttons -> use modern classes instead of default bootstrap #}
+{% if attributes.hasClass('button') and not attributes.hasClass('field-add-more-submit') and not attributes.hasClass('btn') %}
+  {% set btn_classes = [
+    'btn-modern',
+    attributes.hasClass('button--danger') ? 'btn-modern-danger' : 'btn-modern-primary'
+  ] %}
+  <input{{ attributes.addClass(btn_classes) }} />
+{% else %}
+  <input{{ attributes.addClass(base_classes) }} />
+{% endif %}
+
+{{ children }}
