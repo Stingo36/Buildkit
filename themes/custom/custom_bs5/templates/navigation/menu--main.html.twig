@@ -1,0 +1,45 @@
+{#
+/**
+ * @file
+ * Modern Bootstrap 5 menu override.
+ *
+ * Enhancements:
+ * - Uses responsive flex layout for horizontal navs.
+ * - Clean dropdown style with shadow + smooth transitions.
+ * - Active link highlights with underline animation.
+ * - Dark mode compatible.
+ */
+#}
+{{ attach_library('custom_bs5/menu') }}
+
+{% import _self as menus %}
+{{ menus.menu_links(items, attributes, 0) }}
+
+{% macro menu_links(items, attributes, menu_level) %}
+  {% import _self as menus %}
+  {% if items %}
+    {% if menu_level == 0 %}
+      <ul{{ attributes.addClass(['nav', 'navbar-nav', 'modern-nav']) }}>
+    {% else %}
+      <ul class="dropdown-menu shadow-sm border-0 fade-in">
+    {% endif %}
+
+    {% for item in items %}
+      {% set classes_link = [
+        'nav-link',
+        item.is_expanded or item.is_collapsed ? 'dropdown-toggle' : '',
+        item.in_active_trail ? 'active' : ''
+      ] %}
+
+      <li class="nav-item{% if item.below %} dropdown{% endif %}">
+        {{ link(item.title, item.url, { 'class': classes_link, 'data-bs-toggle': (item.below ? 'dropdown' : false), 'aria-expanded': (item.below ? 'false' : false) }) }}
+        {% if item.below %}
+          {{ menus.menu_links(item.below, attributes, menu_level + 1) }}
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endmacro %}
+
+

@@ -1,26 +1,50 @@
-# Composer-managed directories
-/core/
-/vendor/
-/modules/contrib/
-/themes/contrib/
-/profiles/contrib/
-/libraries/
+# ==============================
+# Drupal 10 Git Ignore Template
+# ==============================
 
-# Environment-specific & secrets
-/sites/*/files/
-/sites/*/private/
-/sites/*/settings*.php
-/sites/*/services.yml
-/sites/development.services.yml
+# 🧱 Ignore system and environment files
+/.env
+/.htaccess
+/web.config
+/sites/*/settings.local.php
+/sites/*/.settings.local.php
+/sites/*/services.local.yml
+/sites/*/default/files/
+!/sites/default/files/twig_ui/
+/sites/default/files/
 
-# IDE / OS / temp
-.vscode/
-.idea/
+sites/simpletest/
 *.log
-*.tmp
-*.swp
+*.sql
+*.tar.gz
+*.zip
+*.bak
+
+# 🧩 Ignore Drupal core and vendor dependencies (managed via composer)
+core/
+vendor/
+libraries/
+
+# 🧰 Ignore contrib modules and themes if managed via composer
+modules/contrib/
+themes/contrib/
+profiles/contrib/
+
+# ⚙️ Ignore node build files (if front-end build is used)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+pnpm-lock.yaml
+/.cache
+/dist
+/build
+
+# 💾 Ignore IDE / system / cache
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db
-
+*.swp
 /.gitattributes
-

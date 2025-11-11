@@ -1,0 +1,31 @@
+{#
+/**
+ * @file
+ * Modern exposed Views form matching the enhanced table.
+ * Apply button below filters with minimal gap.
+ */
+#}
+
+{{ attach_library('custom_bs5/views_filter') }}
+
+<form{{ attributes.addClass('views-exposed-form', 'modern-views-filter') }}>
+  {% if q is defined %}
+    {{ q }}
+  {% endif %}
+
+  <div class="views-filter-wrapper">
+    {% for key, element in form %}
+      {% if key|first != '#' and key not in ['actions'] %}
+        <div class="views-filter-item">
+          {{ element }}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {% if form.actions %}
+    <div class="views-filter-actions">
+      {{ form.actions }}
+    </div>
+  {% endif %}
+</form>

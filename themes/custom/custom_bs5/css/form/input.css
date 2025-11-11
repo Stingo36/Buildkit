@@ -110,3 +110,33 @@
   box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
   color: #fff; /* lock white text */
 }
+
+/* ----------------------------------------------
+   Clean small "Remove" text button — properly aligned
+---------------------------------------------- */
+.media-library-item__remove.button,
+.media-library-item__remove.btn-modern {
+  background: none !important;         /* remove blue background */
+  border: none !important;
+  color: #a00 !important;              /* subtle red text */
+  font-size: 12px !important;          /* smaller text */
+  font-weight: 500;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: absolute;
+  top: 10px;                           /* adjust vertical position */
+  right: 12px;                         /* adjust horizontal position */
+  text-decoration: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
+  z-index: 5;
+}
+
+/* Hover and focus states */
+.media-library-item__remove.button:hover,
+.media-library-item__remove.button:focus {
+  color: #d9534f !important;           /* darker red on hover */
+  text-decoration: underline !important;
+  transform: translateY(-1px);
+}

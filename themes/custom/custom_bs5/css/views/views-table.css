@@ -1,0 +1,144 @@
+/**
+ * Modern enhanced Views table
+ * Dark header, clean layout, dark links, responsive with scroll.
+ */
+
+.custom-enhanced-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  color: #1f2937;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  margin: 1.5rem 0;
+}
+
+/* ---------- Scroll Wrapper ---------- */
+.views-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.views-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.views-table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* ---------- Header ---------- */
+.custom-enhanced-table thead {
+  background-color: #1e293b; /* dark navy gray */
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.custom-enhanced-table th {
+  padding: 14px 18px;
+  text-align: left;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  border-bottom: 1px solid #334155;
+}
+
+/* Equalized column widths */
+.custom-enhanced-table th:nth-child(1),
+.custom-enhanced-table td:nth-child(1),
+.custom-enhanced-table th:nth-child(2),
+.custom-enhanced-table td:nth-child(2) {
+  width: 22%;
+}
+
+.custom-enhanced-table th:nth-child(3),
+.custom-enhanced-table td:nth-child(3),
+.custom-enhanced-table th:nth-child(4),
+.custom-enhanced-table td:nth-child(4),
+.custom-enhanced-table th:nth-child(5),
+.custom-enhanced-table td:nth-child(5) {
+  width: 18%;
+}
+
+/* ---------- Table Rows ---------- */
+.custom-enhanced-table tbody tr {
+  transition: background 0.25s ease, transform 0.15s ease;
+}
+
+.custom-enhanced-table tbody tr:hover {
+  background-color: #f3f4f6;
+  transform: translateY(-1px);
+}
+
+.custom-enhanced-table td {
+  padding: 14px 18px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+/* ---------- Links ---------- */
+.custom-enhanced-table a {
+  color: #111827; /* dark neutral links */
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.custom-enhanced-table a:hover {
+  color: #000000;
+  text-decoration: underline;
+}
+
+/* ---------- Last Row ---------- */
+.custom-enhanced-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .views-table-wrapper {
+    overflow-x: auto;
+    margin-bottom: 1rem;
+  }
+
+  .custom-enhanced-table {
+    min-width: 800px; /* ensures horizontal scroll */
+  }
+}
+
+/* ---------- Optional: subtle animation ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .custom-enhanced-table tbody tr {
+    transition: background 0.25s ease, transform 0.15s ease;
+  }
+}
+
+
+/* Fix grouped field "Type:" output shown above table */
+.view .view-content > .view-grouping {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.view .view-content > .view-grouping > .view-grouping-header {
+  background-color: #1e293b; /* match dark header */
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 12px 18px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid #334155;
+  display: inline-block;
+  width: 100%;
+}
+
+.view .view-content > .view-grouping > .view-grouping-content {
+  margin-top: 0;
+}

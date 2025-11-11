@@ -57,3 +57,15 @@ page_title:
   css:
     theme:
       css/content/page-title.css: {}
+
+
+views_table:
+  css:
+    theme:
+      css/views/views-table.css: {}
+
+
+views_filter:
+  css:
+    theme:
+      css/views/views-filter.css: {}

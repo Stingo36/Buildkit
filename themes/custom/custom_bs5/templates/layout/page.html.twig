@@ -1,111 +1,118 @@
 {#
 /**
- * Custom Bootstrap 5 layout with full-width (container-fluid) outer wrappers
- * and inner .container alignment. Background colors added for visual debugging.
+ * Modern responsive Bootstrap 5 layout
+ * Sticky footer | Mobile-first | Clean containers
+ * Works perfectly across mobile, tablet, and desktop.
  */
 #}
 
 {# --- Navbar and Footer Classes --- #}
 {% set nav_classes = 'navbar navbar-expand-lg' ~
-  (b5_navbar_schema != 'none' ? " navbar-#{b5_navbar_schema}" : ' ') ~
-  (b5_navbar_schema != 'none' ? (b5_navbar_schema == 'dark' ? ' text-light' : ' text-dark') : ' ') ~
-  (b5_navbar_bg_schema != 'none' ? " bg-#{b5_navbar_bg_schema}" : ' ')
+  (b5_navbar_schema != 'none' ? " navbar-#{b5_navbar_schema}" : '') ~
+  (b5_navbar_schema != 'none' ? (b5_navbar_schema == 'dark' ? ' text-light' : ' text-dark') : '') ~
+  (b5_navbar_bg_schema != 'none' ? " bg-#{b5_navbar_bg_schema}" : '')
 %}
 
-{% set footer_classes = 'py-4 ' ~
-  (b5_footer_schema != 'none' ? " footer-#{b5_footer_schema}" : ' ') ~
-  (b5_footer_schema != 'none' ? (b5_footer_schema == 'dark' ? ' text-light' : ' text-dark') : ' ') ~
-  (b5_footer_bg_schema != 'none' ? " bg-#{b5_footer_bg_schema}" : ' ')
+{% set footer_classes = 'py-4' ~
+  (b5_footer_schema != 'none' ? " footer-#{b5_footer_schema}" : '') ~
+  (b5_footer_schema != 'none' ? (b5_footer_schema == 'dark' ? ' text-light' : ' text-dark') : '') ~
+  (b5_footer_bg_schema != 'none' ? " bg-#{b5_footer_bg_schema}" : '')
 %}
 
-{# --- Header --- #}
-<header role="banner" class="container-fluid bg-primary bg-opacity-25">
-  <div class="container py-3">
-    {{ page.header }}
-  </div>
+{# --- Full-height responsive wrapper --- #}
+<div class="d-flex flex-column min-vh-100">
 
-  {% if page.nav_branding or page.nav_main or page.nav_additional %}
-    <nav class="{{ nav_classes }} mt-2">
-      <div class="container d-flex align-items-center">
-        {{ page.nav_branding }}
+  {# --- Header --- #}
+  <header role="banner" class="container-fluid border-bottom">
+    <div class="container py-3">
+      {{ page.header }}
+    </div>
 
-        {% if page.nav_main or page.nav_additional %}
-          <button
-            class="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbarSupportedContent"
-            aria-controls="navbarSupportedContent"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span class="navbar-toggler-icon"></span>
-          </button>
+    {% if page.nav_branding or page.nav_main or page.nav_additional %}
+      <nav class="{{ nav_classes }}">
+        <div class="container d-flex align-items-center justify-content-between flex-wrap">
+          {{ page.nav_branding }}
 
-          <div class="collapse navbar-collapse justify-content-md-end" id="navbarSupportedContent">
-            {{ page.nav_main }}
-            {{ page.nav_additional }}
-          </div>
+          {% if page.nav_main or page.nav_additional %}
+            <button
+              class="navbar-toggler"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#navbarSupportedContent"
+              aria-controls="navbarSupportedContent"
+              aria-expanded="false"
+              aria-label="Toggle navigation"
+            >
+              <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse justify-content-end mt-2 mt-lg-0" id="navbarSupportedContent">
+              {{ page.nav_main }}
+              {{ page.nav_additional }}
+            </div>
+          {% endif %}
+        </div>
+      </nav>
+    {% endif %}
+  </header>
+
+  {# --- Main Content --- #}
+  <main role="main" class="container-fluid py-4 flex-grow-1">
+    <a id="main-content" tabindex="-1"></a>
+
+    {# Sidebar + content column layout (responsive) #}
+    {% set sidebar_first_classes = (page.sidebar_first and page.sidebar_second)
+      ? 'col-12 col-md-6 col-lg-3 mb-4 mb-lg-0'
+      : 'col-12 col-lg-3 mb-4 mb-lg-0'
+    %}
+    {% set sidebar_second_classes = (page.sidebar_first and page.sidebar_second)
+      ? 'col-12 col-md-6 col-lg-3 mb-4 mb-lg-0'
+      : 'col-12 col-lg-3 mb-4 mb-lg-0'
+    %}
+    {% set content_classes = (page.sidebar_first and page.sidebar_second)
+      ? 'col-12 col-lg-6'
+      : ((page.sidebar_first or page.sidebar_second)
+        ? 'col-12 col-lg-9'
+        : 'col-12')
+    %}
+
+    <div class="container">
+      {% if page.breadcrumb %}
+        <div class="mb-3">
+          {{ page.breadcrumb }}
+        </div>
+      {% endif %}
+
+      <div class="row g-4">
+        {% if page.sidebar_first %}
+          <aside class="order-2 order-lg-1 {{ sidebar_first_classes }}">
+            {{ page.sidebar_first }}
+          </aside>
+        {% endif %}
+
+        <section class="order-1 order-lg-2 {{ content_classes }}">
+          {{ page.content }}
+        </section>
+
+        {% if page.sidebar_second %}
+          <aside class="order-3 {{ sidebar_second_classes }}">
+            {{ page.sidebar_second }}
+          </aside>
         {% endif %}
       </div>
-    </nav>
-  {% endif %}
-</header>
+    </div>
+  </main>
 
-{# --- Main Content --- #}
-<main role="main" class="container-fluid bg-light bg-opacity-50 py-4">
-  <a id="main-content" tabindex="-1"></a>
-
-  {% set sidebar_first_classes = (page.sidebar_first and page.sidebar_second)
-    ? 'col-12 col-md-6 col-lg-3'
-    : 'col-12 col-lg-3'
-  %}
-  {% set sidebar_second_classes = (page.sidebar_first and page.sidebar_second)
-    ? 'col-12 col-md-6 col-lg-3'
-    : 'col-12 col-lg-3'
-  %}
-  {% set content_classes = (page.sidebar_first and page.sidebar_second)
-    ? 'col-12 col-lg-6'
-    : ((page.sidebar_first or page.sidebar_second)
-      ? 'col-12 col-lg-9'
-      : 'col-12')
-  %}
-
-  <div class="container">
-    {% if page.breadcrumb %}
-      <div class="bg-warning bg-opacity-25 p-2 mb-3 rounded">
-        {{ page.breadcrumb }}
+  {# --- Footer --- #}
+  {% if page.footer %}
+    <footer
+      role="contentinfo"
+      class="container-fluid {{ footer_classes }} border-top mt-auto"
+    >
+      <div class="container text-center py-3">
+        {{ page.footer }}
       </div>
-    {% endif %}
+    </footer>
+  {% endif %}
 
-    <div class="row g-3">
-      {% if page.sidebar_first %}
-        <aside class="order-2 order-lg-1 {{ sidebar_first_classes }} bg-info bg-opacity-25 p-3 rounded">
-          {{ page.sidebar_first }}
-        </aside>
-      {% endif %}
-
-      <section class="order-1 order-lg-2 {{ content_classes }} bg-white bg-opacity-75 p-4 rounded shadow-sm">
-        {{ page.content }}
-      </section>
-
-      {% if page.sidebar_second %}
-        <aside class="order-3 {{ sidebar_second_classes }} bg-success bg-opacity-25 p-3 rounded">
-          {{ page.sidebar_second }}
-        </aside>
-      {% endif %}
-    </div>
-  </div>
-</main>
-
-{# --- Footer --- #}
-{% if page.footer %}
-  <footer
-    role="contentinfo"
-    class="container-fluid {{ footer_classes }} bg-dark bg-opacity-25 mt-4"
-  >
-    <div class="container text-center py-3">
-      {{ page.footer }}
-    </div>
-  </footer>
-{% endif %}
+</div>
