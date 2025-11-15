@@ -1,0 +1,82 @@
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_DIR = "${WORKSPACE}"
+    }
+
+    triggers {
+        // Schedule: Every morning at 08:00 server time
+        cron('0 8 * * *')
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                echo "============================================"
+                echo " Morning Routine – Step 1: Fetch Latest Code"
+                echo "============================================"
+
+                git branch: 'main', url: 'https://github.com/Stingo36/Buildkit.git'
+
+                echo "Code checkout successful."
+            }
+        }
+
+        stage('Composer Install') {
+            steps {
+                echo "============================================"
+                echo " Morning Routine – Step 2: Running Composer"
+                echo "============================================"
+
+                sh '''
+                    cd ${PROJECT_DIR}
+                    echo "Running composer install..."
+                    composer install --no-interaction --prefer-dist
+                '''
+
+                echo "Composer install completed."
+            }
+        }
+
+        stage('Drush Routine') {
+            steps {
+                echo "============================================"
+                echo " Morning Routine – Step 3: Drush Operations"
+                echo " - drush cr"
+                echo " - drush cim -y"
+                echo " - drush cr"
+                echo "============================================"
+
+                sh '''
+                    cd ${PROJECT_DIR}
+
+                    echo "Running drush cr..."
+                    ./vendor/bin/drush cr
+
+                    echo "Running drush cim -y..."
+                    ./vendor/bin/drush cim -y
+
+                    echo "Running final drush cr..."
+                    ./vendor/bin/drush cr
+                '''
+
+                echo "Drush tasks completed."
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "============================================"
+            echo " GOOD MORNING: Daily Jenkins routine SUCCESS."
+            echo "============================================"
+        }
+        failure {
+            echo "============================================"
+            echo " DAILY ROUTINE FAILED – Check console output."
+            echo "============================================"
+        }
+    }
+}
