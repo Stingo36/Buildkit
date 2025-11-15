@@ -142,3 +142,21 @@
 .view .view-content > .view-grouping > .view-grouping-content {
   margin-top: 0;
 }
+
+/* Override ONLY header links */
+.custom-enhanced-table thead th a {
+  color: #ffffff !important;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Hover state for header links */
+.custom-enhanced-table thead th a:hover {
+  color: #f1f5f9 !important;
+  text-decoration: underline;
+}
+
+/* Make the sorting arrow white */
+.custom-enhanced-table thead th .tablesort-indicator {
+  filter: brightness(300%);
+}

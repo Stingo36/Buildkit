@@ -286,7 +286,7 @@ $databases = [];
  *   $settings['hash_salt'] = file_get_contents('/home/example/salt.txt');
  * @endcode
  */
-$settings['hash_salt'] = 'ZbjI-omzZTtEYV6Zij_FTjTmw3ZJnNhDSpliunXAGtqAgFYm4pL-nKDhqQe1Y4Y-oITjdalf3g';
+$settings['hash_salt'] = 'YEjGF9mwBgVyGUD-U5ZYao9_pidOVN8tQ0kB2XUDnT_yos8G63A4jHwTr5AL6QMdiJ38IVN8cA';
 
 /**
  * Deployment identifier.
@@ -889,24 +889,12 @@ $settings['migrate_node_migrate_type_classic'] = FALSE;
  * Keep this code block at the end of this file to take full effect.
  */
 #
-# if (file_exists($app_root . '/' . $site_path . '/settings.local.php')) {
-#   include $app_root . '/' . $site_path . '/settings.local.php';
-# }
+ if (file_exists($app_root . '/' . $site_path . '/settings.local.php')) {
+   include $app_root . '/' . $site_path . '/settings.local.php';
+ }
 
 $config['system.logging']['error_level'] = 'all';
 // Set the syslog ident for Seperate  logs
 
 
 $settings['config_sync_directory'] = 'profiles/custom/stingo_buildkit/config/sync';
-$databases['default']['default'] = array (
-  'database' => 'Buildkit',
-  'username' => 'admin',
-  'password' => 'admin',
-  'prefix' => '',
-  'host' => 'localhost',
-  'port' => 3306,
-  'isolation_level' => 'READ COMMITTED',
-  'driver' => 'mysql',
-  'namespace' => 'Drupal\\mysql\\Driver\\Database\\mysql',
-  'autoload' => 'core/modules/mysql/src/Driver/Database/mysql/',
-);
