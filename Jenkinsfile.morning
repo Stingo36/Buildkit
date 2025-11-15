@@ -1,12 +1,12 @@
 pipeline {
-    agent any
+    agent { label '172.16.218.190' }
 
     environment {
-        PROJECT_DIR = "${WORKSPACE}"
+        LIVE_DIR = "/var/www/html/Buildkit"
     }
 
     triggers {
-        // Schedule: Every morning at 08:00 server time
+        // Every morning at 8AM
         cron('0 8 * * *')
     }
 
@@ -14,69 +14,71 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                echo "============================================"
-                echo " Morning Routine – Step 1: Fetch Latest Code"
-                echo "============================================"
-
-                git branch: 'main', url: 'https://github.com/Stingo36/Buildkit.git'
-
-                echo "Code checkout successful."
+                echo "==== Step 1: Checking out latest code ===="
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: 'main']],
+                    userRemoteConfigs: [[url: 'https://github.com/Stingo36/Buildkit.git']]
+                ])
+                echo "Checkout completed."
             }
         }
 
-        stage('Composer Install') {
+        stage('Composer Install (Workspace Only)') {
             steps {
-                echo "============================================"
-                echo " Morning Routine – Step 2: Running Composer"
-                echo "============================================"
-
+                echo "==== Step 2: Running Composer ===="
                 sh '''
-                    cd ${PROJECT_DIR}
-                    echo "Running composer install..."
+                    echo "Composer install in workspace: $WORKSPACE"
+                    cd "$WORKSPACE"
                     composer install --no-interaction --prefer-dist
                 '''
-
-                echo "Composer install completed."
             }
         }
 
-        stage('Drush Routine') {
+        stage('Sync Clean Code to Live Directory') {
             steps {
-                echo "============================================"
-                echo " Morning Routine – Step 3: Drush Operations"
-                echo " - drush cr"
-                echo " - drush cim -y"
-                echo " - drush cr"
-                echo "============================================"
-
+                echo "==== Step 3: Syncing code to LIVE_DIR ===="
                 sh '''
-                    cd ${PROJECT_DIR}
+                    echo "Removing old code from live directory (safe)"
 
-                    echo "Running drush cr..."
+                    rsync -av --delete \
+                        --exclude='sites/default/files/' \
+                        --exclude='web/sites/default/files/' \
+                        --exclude='.git/' \
+                        --exclude='tmp/' \
+                        --exclude='cache/' \
+                        "$WORKSPACE"/ "$LIVE_DIR"/
+
+                    echo "Code sync completed."
+                '''
+            }
+        }
+
+        stage('Run Drush in LIVE directory') {
+            steps {
+                echo "==== Step 4: Running Drush ===="
+                sh '''
+                    cd "$LIVE_DIR"
+
+                    echo "drush cr..."
                     ./vendor/bin/drush cr
 
-                    echo "Running drush cim -y..."
+                    echo "drush cim -y..."
                     ./vendor/bin/drush cim -y
 
-                    echo "Running final drush cr..."
+                    echo "Final drush cr..."
                     ./vendor/bin/drush cr
                 '''
-
-                echo "Drush tasks completed."
             }
         }
     }
 
     post {
         success {
-            echo "============================================"
-            echo " GOOD MORNING: Daily Jenkins routine SUCCESS."
-            echo "============================================"
+            echo "✔ SUCCESS: Morning Jenkins routine completed."
         }
         failure {
-            echo "============================================"
-            echo " DAILY ROUTINE FAILED – Check console output."
-            echo "============================================"
+            echo "✘ FAILURE: Check logs."
         }
     }
 }
