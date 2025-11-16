@@ -5,31 +5,28 @@ pipeline {
 
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
+        REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
+        BRANCH = 'main'
     }
 
     options {
-        skipDefaultCheckout(false) // use Jenkins workspace to checkout code
+        skipDefaultCheckout(true)
     }
 
     stages {
-        stage('Pull Latest Code') {
+        stage('Clone from SSH') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[url: 'https://github.com/Stingo36/Buildkit.git']]
-                ])
+                script {
+                    sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
+                }
             }
         }
 
-        stage('Copy to Project Directory') {
+        stage('Rsync to Project Directory') {
             steps {
                 script {
-                    // Clean the destination (but not delete the directory itself)
-                    sh "rm -rf ${PROJECT_DIR}/*"
-                    
-                    // Copy everything from Jenkins workspace to project directory
-                    sh "cp -r * ${PROJECT_DIR}/"
+                    // Copy files to project dir without deleting extra files
+                    sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
                 }
             }
         }
@@ -44,17 +41,17 @@ pipeline {
 
         stage('Drupal Cache Rebuild') {
             steps {
-                dir("${env.PROJECT_DIR}") {
-                    sh './vendor/bin/drush cr'
+                dir("${env.PROJECT_DIR}/web") {
+                    sh '../../vendor/bin/drush cr'
                 }
             }
         }
 
         stage('Drupal Config Import') {
             steps {
-                dir("${env.PROJECT_DIR}") {
-                    sh './vendor/bin/drush cim -y'
-                    sh './vendor/bin/drush cr'
+                dir("${env.PROJECT_DIR}/web") {
+                    sh '../../vendor/bin/drush cim -y'
+                    sh '../../vendor/bin/drush cr'
                 }
             }
         }
