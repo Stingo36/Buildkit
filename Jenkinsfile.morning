@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'linux_agent_172_16_218_190'   // Replace with your actual Jenkins agent label
+        label '172.16.218.190'   // Replace with your actual Jenkins agent label
     }
 
     options {
