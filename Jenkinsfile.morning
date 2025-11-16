@@ -9,14 +9,13 @@ pipeline {
     }
 
     options {
-        skipDefaultCheckout(true) // prevent default repo clone to workspace
+        skipDefaultCheckout(true)
     }
 
     stages {
         stage('Prepare Workspace') {
             steps {
                 script {
-                    // Clean target directory (optional safety measure)
                     sh 'rm -rf ${PROJECT_DIR}/*'
                 }
             }
@@ -25,9 +24,7 @@ pipeline {
         stage('Clone Repository') {
             steps {
                 script {
-                    sh """
-                        git clone ${REPO_URL} ${PROJECT_DIR}
-                    """
+                    sh 'git clone ${REPO_URL} ${PROJECT_DIR}'
                 }
             }
         }
@@ -35,7 +32,7 @@ pipeline {
         stage('Composer Install') {
             steps {
                 dir("${env.PROJECT_DIR}") {
-                    sh './composer install'
+                    sh 'composer install'
                 }
             }
         }
