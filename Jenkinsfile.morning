@@ -5,26 +5,31 @@ pipeline {
 
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
-        REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
     }
 
     options {
-        skipDefaultCheckout(true)
+        skipDefaultCheckout(false) // use Jenkins workspace to checkout code
     }
 
     stages {
-        stage('Prepare Workspace') {
+        stage('Pull Latest Code') {
             steps {
-                script {
-                    sh 'rm -rf ${PROJECT_DIR}/*'
-                }
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: 'https://github.com/Stingo36/Buildkit.git']]
+                ])
             }
         }
 
-        stage('Clone Repository') {
+        stage('Copy to Project Directory') {
             steps {
                 script {
-                    sh 'git clone ${REPO_URL} ${PROJECT_DIR}'
+                    // Clean the destination (but not delete the directory itself)
+                    sh "rm -rf ${PROJECT_DIR}/*"
+                    
+                    // Copy everything from Jenkins workspace to project directory
+                    sh "cp -r * ${PROJECT_DIR}/"
                 }
             }
         }
