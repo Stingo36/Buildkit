@@ -5,7 +5,7 @@ pipeline {
 
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
-        REPO_URL = 'https://github.com/Stingo36/Buildkit.git'
+        REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
     }
 
     options {
