@@ -3,69 +3,67 @@ pipeline {
         label '172.16.218.190'
     }
 
+    environment {
+        PROJECT_DIR = '/var/www/html/Buildkit'
+        REPO_URL = 'https://github.com/Stingo36/Buildkit.git'
+    }
+
     options {
-        skipDefaultCheckout(true)
+        skipDefaultCheckout(true) // prevent default repo clone to workspace
     }
 
     stages {
+        stage('Prepare Workspace') {
+            steps {
+                script {
+                    // Clean target directory (optional safety measure)
+                    sh 'rm -rf ${PROJECT_DIR}/*'
+                }
+            }
+        }
 
         stage('Clone Repository') {
             steps {
-                echo "=== Cloning repo ==="
-                dir('workspace_checkout') {
-                    git branch: 'main', url: 'git@github.com:Stingo36/Buildkit.git'
+                script {
+                    sh """
+                        git clone ${REPO_URL} ${PROJECT_DIR}
+                    """
                 }
             }
         }
 
-        stage('Sync Project Files (Composer Managed)') {
+        stage('Composer Install') {
             steps {
-                echo "=== Syncing ONLY project files (no core/vendor overwrite) ==="
-                sh '''
-                    rsync -av \
-                      --exclude=vendor \
-                      --exclude=core \
-                      --exclude=autoload.php \
-                      --exclude=index.php \
-                      --exclude=sites/default/files \
-                      --exclude=sites/default/settings.php \
-                      workspace_checkout/ /var/www/html/Buildkit/
-                '''
-            }
-        }
-
-        stage('Composer Install / Update') {
-            steps {
-                echo "=== Running Composer Install ==="
-                dir('/var/www/html/Buildkit') {
-                    sh 'composer install --no-interaction --prefer-dist'
+                dir("${env.PROJECT_DIR}") {
+                    sh './composer install'
                 }
-                echo "Composer completed."
             }
         }
 
-        stage('Drupal Commands') {
+        stage('Drupal Cache Rebuild') {
             steps {
-                echo "=== Drush Operations ==="
-                dir('/var/www/html/Buildkit') {
+                dir("${env.PROJECT_DIR}") {
                     sh './vendor/bin/drush cr'
+                }
+            }
+        }
+
+        stage('Drupal Config Import') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
                     sh './vendor/bin/drush cim -y'
                     sh './vendor/bin/drush cr'
                 }
             }
         }
-
-        stage('Finalize') {
-            steps {
-                echo "=== Deployment Completed Successfully ==="
-            }
-        }
     }
 
     post {
-        cleanup {
-            echo "=== Cleaning Jenkins workspace ==="
-            sh "rm -rf workspace_checkout"
+        failure {
+            echo "❌ Build failed. Check logs for more info."
+        }
+        success {
+            echo "✅ Build completed successfully."
         }
     }
 }
