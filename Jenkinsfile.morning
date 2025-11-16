@@ -1,84 +1,77 @@
 pipeline {
-    agent { label '172.16.218.190' }
-
-    environment {
-        LIVE_DIR = "/var/www/html/Buildkit"
+    agent {
+        label 'linux_agent_172_16_218_190'   // Replace with your actual Jenkins agent label
     }
 
-    triggers {
-        // Every morning at 8AM
-        cron('0 8 * * *')
+    options {
+        skipDefaultCheckout(true)   // Prevent Jenkins default checkout into workspace
     }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Start Pipeline') {
             steps {
-                echo "==== Step 1: Checking out latest code ===="
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: 'main']],
-                    userRemoteConfigs: [[url: 'https://github.com/Stingo36/Buildkit.git']]
-                ])
-                echo "Checkout completed."
+                echo "=== Pipeline started on agent 172.16.218.190 ==="
+                echo "Preparing to clone repository from GitHub..."
             }
         }
 
-        stage('Composer Install (Workspace Only)') {
+        stage('Clone Repository') {
             steps {
-                echo "==== Step 2: Running Composer ===="
-                sh '''
-                    echo "Composer install in workspace: $WORKSPACE"
-                    cd "$WORKSPACE"
-                    composer install --no-interaction --prefer-dist
-                '''
+                echo "=== Cloning repository from GitHub into clean workspace directory ==="
+                dir('workspace_checkout') {
+                    git branch: 'main', url: 'https://github.com/Stingo36/Buildkit.git'
+                }
+                echo "Repository successfully cloned from GitHub."
             }
         }
 
-        stage('Sync Clean Code to Live Directory') {
+        stage('Sync to Drupal Project Directory') {
             steps {
-                echo "==== Step 3: Syncing code to LIVE_DIR ===="
+                echo "=== Syncing code to project directory: /var/www/html/Buildkit ==="
                 sh '''
-                    echo "Removing old code from live directory (safe)"
-
                     rsync -av --delete \
-                        --exclude='sites/default/files/' \
-                        --exclude='web/sites/default/files/' \
-                        --exclude='.git/' \
-                        --exclude='tmp/' \
-                        --exclude='cache/' \
-                        "$WORKSPACE"/ "$LIVE_DIR"/
-
-                    echo "Code sync completed."
+                    workspace_checkout/ \
+                    /var/www/html/Buildkit/
                 '''
+                echo "Code sync completed. Project directory updated."
             }
         }
 
-        stage('Run Drush in LIVE directory') {
+        stage('Composer Install') {
             steps {
-                echo "==== Step 4: Running Drush ===="
-                sh '''
-                    cd "$LIVE_DIR"
+                echo "=== Running Composer Install inside project directory ==="
+                dir('/var/www/html/Buildkit') {
+                    sh './composer install'
+                }
+                echo "Composer install completed successfully."
+            }
+        }
 
-                    echo "drush cr..."
-                    ./vendor/bin/drush cr
+        stage('Drupal Commands') {
+            steps {
+                echo "=== Running Drupal cache rebuild and config import ==="
+                dir('/var/www/html/Buildkit') {
+                    sh './vendor/bin/drush cr'
+                    sh './vendor/bin/drush cim -y'
+                    sh './vendor/bin/drush cr'
+                }
+                echo "Drupal commands executed successfully."
+            }
+        }
 
-                    echo "drush cim -y..."
-                    ./vendor/bin/drush cim -y
-
-                    echo "Final drush cr..."
-                    ./vendor/bin/drush cr
-                '''
+        stage('Finalize') {
+            steps {
+                echo "=== Deployment pipeline completed successfully ==="
             }
         }
     }
 
     post {
-        success {
-            echo "✔ SUCCESS: Morning Jenkins routine completed."
-        }
-        failure {
-            echo "✘ FAILURE: Check logs."
+        cleanup {
+            echo "=== Cleaning temporary workspace checkout directory ==="
+            sh "rm -rf workspace_checkout"
+            echo "Cleanup completed."
         }
     }
 }
