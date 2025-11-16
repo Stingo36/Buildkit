@@ -17,7 +17,7 @@ pipeline {
 
         stage('Clone Repository') {
             steps {
-                echo "=== Cloning GitHub Repository ==="
+                echo "=== Cloning GitHub Repository via SSH ==="
                 dir('workspace_checkout') {
                     git branch: 'main', url: 'git@github.com:Stingo36/Buildkit.git'
                 }
@@ -27,21 +27,24 @@ pipeline {
 
         stage('Sync to Drupal Project Directory') {
             steps {
-                echo "=== Syncing code to Drupal project directory (NO DELETION) ==="
+                echo "=== Syncing code to /var/www/html/Buildkit (NO DELETE, NO .GIT) ==="
+
                 sh '''
                     rsync -av \
-                    --exclude='sites/default/files' \
-                    --exclude='sites/default/settings.php' \
-                    workspace_checkout/ \
-                    /var/www/html/Buildkit/
+                        --exclude='.git' \
+                        --exclude='sites/default/files' \
+                        --exclude='sites/default/settings.php' \
+                        workspace_checkout/ \
+                        /var/www/html/Buildkit/
                 '''
-                echo "Code sync completed WITHOUT deleting any server files."
+
+                echo "Code sync completed safely."
             }
         }
 
         stage('Composer Install') {
             steps {
-                echo "=== Running Composer Install ==="
+                echo "=== Running Composer Install inside /var/www/html/Buildkit ==="
                 dir('/var/www/html/Buildkit') {
                     sh 'composer install'
                 }
@@ -51,21 +54,35 @@ pipeline {
 
         stage('Drupal Commands') {
             steps {
-                echo "=== Running Drupal commands (drush) ==="
+                echo "=== Running Drupal Drush Commands ==="
                 dir('/var/www/html/Buildkit') {
+
+                    // Check Drupal status before running commands
                     sh './vendor/bin/drush status'
+
+                    // Clear caches
                     sh './vendor/bin/drush cr'
+
+                    // Import config
                     sh './vendor/bin/drush cim -y'
+
+                    // Clear caches again
                     sh './vendor/bin/drush cr'
                 }
-                echo "Drupal commands completed."
+                echo "Drupal commands executed successfully."
+            }
+        }
+
+        stage('Finalize') {
+            steps {
+                echo "=== Deployment completed successfully ==="
             }
         }
     }
 
     post {
         cleanup {
-            echo "=== Cleaning temporary workspace_checkout directory ==="
+            echo "=== Cleaning temporary workspace directory ==="
             sh "rm -rf workspace_checkout"
             echo "Cleanup completed."
         }

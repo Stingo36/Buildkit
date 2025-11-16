@@ -1,107 +1,75 @@
-# Stingo Buildkit
+<img alt="Drupal Logo" src="https://www.drupal.org/files/Wordmark_blue_RGB.png" height="60px">
 
-**Stingo Buildkit** is a custom Drupal 10.5.3 starter kit with a powerful set of modules and themes to accelerate the development of modern, secure, and flexible Drupal websites. It is built on top of Drupal's core, leveraging best practices and essential site-building tools out of the box.
+Drupal is an open source content management platform supporting a variety of
+websites ranging from personal weblogs to large community-driven websites. For
+more information, visit the Drupal website, [Drupal.org][Drupal.org], and join
+the [Drupal community][Drupal community].
 
----
-![alt text](image.png)
+## Contributing
 
----
+Drupal is developed on [Drupal.org][Drupal.org], the home of the international
+Drupal community since 2001!
 
-## 📦 Included Modules
+[Drupal.org][Drupal.org] hosts Drupal's [GitLab repository][GitLab repository],
+its [issue queue][issue queue], and its [documentation][documentation]. Before
+you start working on code, be sure to search the [issue queue][issue queue] and
+create an issue if your aren't able to find an existing issue.
 
-This buildkit comes pre-installed with the following modules:
+Every issue on Drupal.org automatically creates a new community-accessible fork
+that you can contribute to. Learn more about the code contribution process on
+the [Issue forks & merge requests page][issue forks].
 
-- `admin_toolbar`
-- `block_class`
-- `block_content_permissions`
-- `bootstrap_layout_builder`
-- `bootstrap_styles`
-- `bpmn_io`
-- `captcha`
-- `ckeditor5_plugin_pack`
-- `ckeditor5_premium_features`
-- `conditional_fields`
-- `css_editor`
-- `easy_email`
-- `eca`
-- `embed`
-- `entity_browser`
-- `entity_embed`
-- `entity_reference_revisions`
-- `events_log_track`
-- `field_group`
-- `field_permissions`
-- `filefield_paths`
-- `gin_toolbar`
-- `imce`
-- `jquery_ui`
-- `jquery_ui_resizable`
-- `layout_options`
-- `media_directories`
-- `media_library_form_element`
-- `paragraphs`
-- `seckit`
-- `security_review`
-- `symfony_mailer`
-- `token`
-- `twig_debugger`
-- `twig_ui`
-- `ui_patterns`
-- `ui_styles`
-- `views_bulk_operations`
-- `views_field_permissions`
-- `reroute_emails`
-- `autotitle`
-- `disable_messages`
----
+## Usage
 
-## 🎨 Included Themes
+For a brief introduction, see [USAGE.txt](/core/USAGE.txt). You can also find
+guides, API references, and more by visiting Drupal's [documentation
+page][documentation].
 
-- `bootstrap5` – Responsive front-end theme using Bootstrap 5
-- `gin` – Clean, modern administration theme
-- `ui_suite_bootstrap` – Component-driven theming with UI Suite integration
+You can quickly extend Drupal's core feature set by installing any of its
+[thousands of free and open source modules][modules]. With Drupal and its
+module ecosystem, you can often build most or all of what your project needs
+before writing a single line of code.
 
----
+## Changelog
 
-## 🛠️ Installation Guide
+Drupal keeps detailed [change records][changelog]. You can search Drupal's
+changes for a record of every notable breaking change and new feature since
+2011.
 
-### ✅ Step 1: Create a New Project
+## Security
 
-```bash
-composer create-project stingo/buildkit my_project
-cd my_project
-```
+For a list of security announcements, see the [Security advisories
+page][Security advisories] (available as [an RSS feed][security RSS]). This
+page also describes how to subscribe to these announcements via email.
 
----
+For information about the Drupal security process, or to find out how to report
+a potential security issue to the Drupal security team, see the [Security team
+page][security team].
 
-### 🛢️ Step 2: Create a MySQL Database
+## Need a helping hand?
 
-```bash
-mysql -u root -p
-```
+Visit the [Support page][support] or browse [over a thousand Drupal
+providers][service providers] offering design, strategy, development, and
+hosting services.
 
-Then run these commands inside the MySQL prompt:
+## Legal matters
 
-```sql
-CREATE DATABASE stingo_buildkit CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-GRANT ALL PRIVILEGES ON stingo_buildkit.* TO 'root'@'localhost' IDENTIFIED BY 'your_db_password';
-FLUSH PRIVILEGES;
-EXIT;
-```
+Know your rights when using Drupal by reading Drupal core's
+[license](/core/LICENSE.txt).
 
-> 🔐 Replace `'your_db_password'` with your actual MySQL password.
+Learn about the [Drupal trademark and logo policy here][trademark].
 
----
-
-### ⚙️ Step 3: Install the Site via Drush
-
-```bash
-drush si stingo_buildkit \
-  --site-name="Stingo Site" \
-  --account-name=admin \
-  --account-pass=admin123 \
-  --account-mail=admin@example.com 
-
-```
-
-> Replace `your_db_password` with your actual MySQL root password.
+[Drupal.org]: https://www.drupal.org
+[Drupal community]: https://www.drupal.org/community
+[GitLab repository]: https://git.drupalcode.org/project/drupal
+[issue queue]: https://www.drupal.org/project/issues/drupal
+[issue forks]: https://www.drupal.org/drupalorg/docs/gitlab-integration/issue-forks-merge-requests
+[documentation]: https://www.drupal.org/documentation
+[changelog]: https://www.drupal.org/list-changes/drupal
+[modules]: https://www.drupal.org/project/project_module
+[security advisories]: https://www.drupal.org/security
+[security RSS]: https://www.drupal.org/security/rss.xml
+[security team]: https://www.drupal.org/drupal-security-team
+[service providers]: https://www.drupal.org/drupal-services
+[support]: https://www.drupal.org/support
+[trademark]: https://www.drupal.com/trademark
