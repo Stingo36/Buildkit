@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label '172.16.218.190'   // Replace with your actual Jenkins agent label
+        label '172.16.218.190'
     }
 
     options {
@@ -19,7 +19,7 @@ pipeline {
             steps {
                 echo "=== Cloning GitHub Repository ==="
                 dir('workspace_checkout') {
-                    git branch: 'main', url: 'git@github.com:Stingo36/Buildkit.git  '
+                    git branch: 'main', url: 'git@github.com:Stingo36/Buildkit.git'
                 }
                 echo "Repository cloned successfully."
             }
@@ -27,19 +27,21 @@ pipeline {
 
         stage('Sync to Drupal Project Directory') {
             steps {
-                echo "=== Syncing code to Drupal project directory ==="
+                echo "=== Syncing code to Drupal project directory (NO DELETION) ==="
                 sh '''
-                    rsync -av --delete \
+                    rsync -av \
+                    --exclude='sites/default/files' \
+                    --exclude='sites/default/settings.php' \
                     workspace_checkout/ \
                     /var/www/html/Buildkit/
                 '''
-                echo "Code sync completed."
+                echo "Code sync completed WITHOUT deleting any server files."
             }
         }
 
         stage('Composer Install') {
             steps {
-                echo "=== Running Composer Install inside /var/www/html/Buildkit ==="
+                echo "=== Running Composer Install ==="
                 dir('/var/www/html/Buildkit') {
                     sh 'composer install'
                 }
@@ -51,6 +53,7 @@ pipeline {
             steps {
                 echo "=== Running Drupal commands (drush) ==="
                 dir('/var/www/html/Buildkit') {
+                    sh './vendor/bin/drush status'
                     sh './vendor/bin/drush cr'
                     sh './vendor/bin/drush cim -y'
                     sh './vendor/bin/drush cr'
@@ -58,17 +61,11 @@ pipeline {
                 echo "Drupal commands completed."
             }
         }
-
-        stage('Finalize') {
-            steps {
-                echo "=== Deployment completed successfully ==="
-            }
-        }
     }
 
     post {
         cleanup {
-            echo "=== Cleaning temporary workspace checkout directory ==="
+            echo "=== Cleaning temporary workspace_checkout directory ==="
             sh "rm -rf workspace_checkout"
             echo "Cleanup completed."
         }
