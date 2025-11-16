@@ -14,18 +14,19 @@ pipeline {
     }
 
     stages {
-        stage('Clone from SSH') {
+        stage('Clone Repository via SSH') {
             steps {
                 script {
+                    // Clone the repo into a temp folder inside the workspace
                     sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
                 }
             }
         }
 
-        stage('Rsync to Project Directory') {
+        stage('Sync Code to Project Directory') {
             steps {
                 script {
-                    // Copy files to project dir without deleting extra files
+                    // Rsync code to the Drupal project directory (non-destructive)
                     sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
                 }
             }
@@ -39,19 +40,19 @@ pipeline {
             }
         }
 
-        stage('Drupal Cache Rebuild') {
+        stage('Drush Cache Rebuild') {
             steps {
-                dir("${env.PROJECT_DIR}/web") {
-                    sh '../../vendor/bin/drush cr'
+                dir("${env.PROJECT_DIR}") {
+                    sh './vendor/bin/drush cr'
                 }
             }
         }
 
-        stage('Drupal Config Import') {
+        stage('Drush Config Import') {
             steps {
-                dir("${env.PROJECT_DIR}/web") {
-                    sh '../../vendor/bin/drush cim -y'
-                    sh '../../vendor/bin/drush cr'
+                dir("${env.PROJECT_DIR}") {
+                    sh './vendor/bin/drush cim -y'
+                    sh './vendor/bin/drush cr'
                 }
             }
         }
