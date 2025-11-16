@@ -17,7 +17,8 @@ pipeline {
         stage('Clone Repository via SSH') {
             steps {
                 script {
-                    // Clone the repo into a temp folder inside the workspace
+                    // Clone the repository to a temp directory in workspace
+                    sh "rm -rf repo_temp"
                     sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
                 }
             }
@@ -26,7 +27,7 @@ pipeline {
         stage('Sync Code to Project Directory') {
             steps {
                 script {
-                    // Rsync code to the Drupal project directory (non-destructive)
+                    // Safely sync all files to the persistent project directory
                     sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
                 }
             }
@@ -35,7 +36,7 @@ pipeline {
         stage('Composer Install') {
             steps {
                 dir("${env.PROJECT_DIR}") {
-                    sh 'composer install'
+                    sh 'COMPOSER_ALLOW_SUPERUSER=1 composer install'
                 }
             }
         }
