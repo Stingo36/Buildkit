@@ -19,7 +19,7 @@ pipeline {
             steps {
                 echo "=== Cloning GitHub Repository ==="
                 dir('workspace_checkout') {
-                    git branch: 'main', url: 'https://github.com/Stingo36/Buildkit.git'
+                    git branch: 'main', url: 'git@github.com:Stingo36/Buildkit.git  '
                 }
                 echo "Repository cloned successfully."
             }
