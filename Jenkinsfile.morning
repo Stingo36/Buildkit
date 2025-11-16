@@ -1,10 +1,10 @@
 pipeline {
     agent {
-        label '172.16.218.190'   // Replace with your actual Jenkins agent label
+        label 'linux_agent_172_16_218_190'   // Replace with your actual Jenkins agent label
     }
 
     options {
-        skipDefaultCheckout(true)   // Prevent Jenkins default checkout into workspace
+        skipDefaultCheckout(true)
     }
 
     stages {
@@ -12,57 +12,56 @@ pipeline {
         stage('Start Pipeline') {
             steps {
                 echo "=== Pipeline started on agent 172.16.218.190 ==="
-                echo "Preparing to clone repository from GitHub..."
             }
         }
 
         stage('Clone Repository') {
             steps {
-                echo "=== Cloning repository from GitHub into clean workspace directory ==="
+                echo "=== Cloning GitHub Repository ==="
                 dir('workspace_checkout') {
                     git branch: 'main', url: 'https://github.com/Stingo36/Buildkit.git'
                 }
-                echo "Repository successfully cloned from GitHub."
+                echo "Repository cloned successfully."
             }
         }
 
         stage('Sync to Drupal Project Directory') {
             steps {
-                echo "=== Syncing code to project directory: /var/www/html/Buildkit ==="
+                echo "=== Syncing code to Drupal project directory ==="
                 sh '''
                     rsync -av --delete \
                     workspace_checkout/ \
                     /var/www/html/Buildkit/
                 '''
-                echo "Code sync completed. Project directory updated."
+                echo "Code sync completed."
             }
         }
 
         stage('Composer Install') {
             steps {
-                echo "=== Running Composer Install inside project directory ==="
+                echo "=== Running Composer Install inside /var/www/html/Buildkit ==="
                 dir('/var/www/html/Buildkit') {
-                    sh './composer install'
+                    sh 'composer install'
                 }
-                echo "Composer install completed successfully."
+                echo "Composer install completed."
             }
         }
 
         stage('Drupal Commands') {
             steps {
-                echo "=== Running Drupal cache rebuild and config import ==="
+                echo "=== Running Drupal commands (drush) ==="
                 dir('/var/www/html/Buildkit') {
                     sh './vendor/bin/drush cr'
                     sh './vendor/bin/drush cim -y'
                     sh './vendor/bin/drush cr'
                 }
-                echo "Drupal commands executed successfully."
+                echo "Drupal commands completed."
             }
         }
 
         stage('Finalize') {
             steps {
-                echo "=== Deployment pipeline completed successfully ==="
+                echo "=== Deployment completed successfully ==="
             }
         }
     }
