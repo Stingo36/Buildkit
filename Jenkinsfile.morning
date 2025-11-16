@@ -9,82 +9,63 @@ pipeline {
 
     stages {
 
-        stage('Start Pipeline') {
-            steps {
-                echo "=== Pipeline started on agent 172.16.218.190 ==="
-            }
-        }
-
         stage('Clone Repository') {
             steps {
-                echo "=== Cloning GitHub Repository via SSH ==="
+                echo "=== Cloning repo ==="
                 dir('workspace_checkout') {
                     git branch: 'main', url: 'git@github.com:Stingo36/Buildkit.git'
                 }
-                echo "Repository cloned successfully."
             }
         }
 
-        stage('Sync to Drupal Project Directory') {
+        stage('Sync Project Files (Composer Managed)') {
             steps {
-                echo "=== Syncing code to /var/www/html/Buildkit (NO DELETE, NO .GIT) ==="
-
+                echo "=== Syncing ONLY project files (no core/vendor overwrite) ==="
                 sh '''
                     rsync -av \
-                        --exclude='.git' \
-                        --exclude='sites/default/files' \
-                        --exclude='sites/default/settings.php' \
-                        workspace_checkout/ \
-                        /var/www/html/Buildkit/
+                      --exclude=vendor \
+                      --exclude=core \
+                      --exclude=autoload.php \
+                      --exclude=index.php \
+                      --exclude=sites/default/files \
+                      --exclude=sites/default/settings.php \
+                      workspace_checkout/ /var/www/html/Buildkit/
                 '''
-
-                echo "Code sync completed safely."
             }
         }
 
-        stage('Composer Install') {
+        stage('Composer Install / Update') {
             steps {
-                echo "=== Running Composer Install inside /var/www/html/Buildkit ==="
+                echo "=== Running Composer Install ==="
                 dir('/var/www/html/Buildkit') {
-                    sh 'composer install'
+                    sh 'composer install --no-interaction --prefer-dist'
                 }
-                echo "Composer install completed."
+                echo "Composer completed."
             }
         }
 
         stage('Drupal Commands') {
             steps {
-                echo "=== Running Drupal Drush Commands ==="
+                echo "=== Drush Operations ==="
                 dir('/var/www/html/Buildkit') {
-
-                    // Check Drupal status before running commands
-                    sh './vendor/bin/drush status'
-
-                    // Clear caches
                     sh './vendor/bin/drush cr'
-
-                    // Import config
                     sh './vendor/bin/drush cim -y'
-
-                    // Clear caches again
                     sh './vendor/bin/drush cr'
                 }
-                echo "Drupal commands executed successfully."
             }
         }
 
         stage('Finalize') {
             steps {
-                echo "=== Deployment completed successfully ==="
+                echo "=== Deployment Completed Successfully ==="
             }
         }
     }
 
     post {
         cleanup {
-            echo "=== Cleaning temporary workspace directory ==="
+            echo "=== Cleaning Jenkins workspace ==="
             sh "rm -rf workspace_checkout"
-            echo "Cleanup completed."
         }
     }
 }
