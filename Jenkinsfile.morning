@@ -6,7 +6,7 @@ pipeline {
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
         REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
-        BRANCH = 'main'
+        BASE_BRANCH = 'main'
     }
 
     options {
@@ -14,12 +14,104 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository via SSH') {
+
+        // =============================================================
+        // 1. AUTO-MERGE PROCESS (SAFE + CONFLICT DETECTION)
+        // =============================================================
+
+        stage('Fetch Latest Main Branch') {
+            steps {
+                echo "==> Updating local main branch..."
+                dir("${PROJECT_DIR}") {
+                    sh """
+                        git checkout ${BASE_BRANCH}
+                        git pull origin ${BASE_BRANCH}
+                    """
+                }
+            }
+        }
+
+        stage('Detect PRs Marked ready-to-merge') {
             steps {
                 script {
-                    // Clone the repository to a temp directory in workspace
+                    echo "==> Searching for PRs with label 'ready-to-merge'..."
+
+                    PR_LIST = sh(
+                        script: "gh pr list --state open --label 'ready-to-merge' --json number,title,headRefName --jq '.[]'",
+                        returnStdout: true
+                    ).trim()
+
+                    if (PR_LIST == "") {
+                        echo "==> No PRs found with label 'ready-to-merge'."
+                        env.PR_FOUND = "false"
+                    } else {
+                        echo "==> PRs ready for merge:"
+                        echo PR_LIST
+
+                        NUMBERS = sh(
+                            script: "gh pr list --state open --label 'ready-to-merge' --json number --jq '.[].number'",
+                            returnStdout: true
+                        ).trim()
+
+                        env.PR_FOUND = "true"
+                        env.PR_NUMBERS = NUMBERS
+                    }
+                }
+            }
+        }
+
+        stage('Merge Approved PRs') {
+            when {
+                expression { env.PR_FOUND == "true" }
+            }
+            steps {
+                script {
+
+                    for (PR in env.PR_NUMBERS.split()) {
+
+                        echo "----------------------------------------------------"
+                        echo "Processing PR #${PR}"
+                        echo "Checking mergeability..."
+                        echo "----------------------------------------------------"
+
+                        MERGEABLE = sh(
+                            script: "gh pr view ${PR} --json mergeable --jq '.mergeable'",
+                            returnStdout: true
+                        ).trim()
+
+                        if (MERGEABLE != "MERGEABLE") {
+                            echo "⚠ SKIPPED: PR #${PR} has merge conflicts or is not mergeable."
+                            echo "   -> Manual conflict resolution required."
+                            continue
+                        }
+
+                        echo "✅ PR #${PR} is mergeable. Attempting merge..."
+
+                        try {
+                            sh """
+                                gh pr merge ${PR} --merge --delete-branch
+                            """
+                            echo "✅ Successfully merged PR #${PR}"
+                        } catch (err) {
+                            echo "❌ ERROR merging PR #${PR}"
+                            echo "Reason: ${err}"
+                            echo "-> Skipping this PR. Main branch remains safe."
+                        }
+                    }
+                }
+            }
+        }
+
+        // =============================================================
+        // 2. DEPLOY UPDATED MAIN BRANCH (YOUR ORIGINAL STEPS)
+        // =============================================================
+
+        stage('Clone Updated Main Branch') {
+            steps {
+                echo "==> Cloning updated main branch..."
+                script {
                     sh "rm -rf repo_temp"
-                    sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
+                    sh "git clone -b ${BASE_BRANCH} ${REPO_URL} repo_temp"
                 }
             }
         }
@@ -27,7 +119,7 @@ pipeline {
         stage('Sync Code to Project Directory') {
             steps {
                 script {
-                    // Safely sync all files to the persistent project directory
+                    echo "==> Syncing code to ${PROJECT_DIR}..."
                     sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
                 }
             }
@@ -35,36 +127,45 @@ pipeline {
 
         stage('Composer Install') {
             steps {
-                dir("${env.PROJECT_DIR}") {
-                    sh 'COMPOSER_ALLOW_SUPERUSER=1 composer install'
+                dir("${PROJECT_DIR}") {
+                    echo "==> Running composer install..."
+                    sh "COMPOSER_ALLOW_SUPERUSER=1 composer install"
                 }
             }
         }
 
         stage('Drush Cache Rebuild') {
             steps {
-                dir("${env.PROJECT_DIR}") {
-                    sh './vendor/bin/drush cr'
+                dir("${PROJECT_DIR}") {
+                    echo "==> Running drush cr..."
+                    sh "./vendor/bin/drush cr"
                 }
             }
         }
 
         stage('Drush Config Import') {
             steps {
-                dir("${env.PROJECT_DIR}") {
-                    sh './vendor/bin/drush cim -y'
-                    sh './vendor/bin/drush cr'
+                dir("${PROJECT_DIR}") {
+                    echo "==> Importing Drupal config..."
+                    sh "./vendor/bin/drush cim -y"
+                    echo "==> Clearing cache..."
+                    sh "./vendor/bin/drush cr"
                 }
             }
         }
+
     }
 
     post {
-        failure {
-            echo "❌ Build failed. Check logs for more info."
-        }
         success {
-            echo "✅ Build completed successfully."
+            echo "===================================================="
+            echo "✅ Morning job completed: Auto-merge + Deployment OK."
+            echo "===================================================="
+        }
+        failure {
+            echo "===================================================="
+            echo "❌ Morning job failed. Check above logs."
+            echo "===================================================="
         }
     }
 }

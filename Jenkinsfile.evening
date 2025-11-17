@@ -1,28 +1,24 @@
 pipeline {
-    agent {
-        label '172.16.218.190'
-    }
+    agent { label '172.16.218.190' }
 
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
-        NEW_BRANCH = 'stingo'
+        NEW_BRANCH = "${BRANCH_NAME}"   // stingo / garry / max (we pass from Jenkins job)
         BASE_BRANCH = 'main'
         COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
     }
 
     stages {
 
-        stage('Switch to Stingo Branch') {
+        stage('Create Feature Branch') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        git checkout -b ${NEW_BRANCH}
-                    """
+                    sh "git checkout -b ${NEW_BRANCH}"
                 }
             }
         }
 
-        stage('Run Drush Export Sequence') {
+        stage('Drush Export') {
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
@@ -34,29 +30,17 @@ pipeline {
             }
         }
 
-        stage('Git Add & Commit') {
+        stage('Commit Changes') {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-
-                        // Read commit message from file
-                        BASE_MSG = sh(
-                            script: "cat ${COMMIT_FILE}",
-                            returnStdout: true
-                        ).trim()
-
-                        // Generate timestamp (YYYY-MM-DD HH:MM:SS)
-                        TIMESTAMP = sh(
-                            script: "date '+%Y-%m-%d %H:%M:%S'",
-                            returnStdout: true
-                        ).trim()
-
-                        // Final commit message in desired format
+                        BASE_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+                        TIMESTAMP = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
                         FINAL_MSG = "${TIMESTAMP} | ${BASE_MSG}"
 
                         sh """
                             git add .
-                            git commit -m "${FINAL_MSG}"
+                            git commit -m "${FINAL_MSG}" || echo "No changes to commit"
                         """
                     }
                 }
@@ -66,8 +50,21 @@ pipeline {
         stage('Push Branch') {
             steps {
                 dir("${PROJECT_DIR}") {
+                    sh "git push -u origin ${NEW_BRANCH}"
+                }
+            }
+        }
+
+        stage('Create or Update Pull Request') {
+            steps {
+                dir("${PROJECT_DIR}") {
                     sh """
-                        git push origin ${NEW_BRANCH}
+                        gh pr create \
+                          --base ${BASE_BRANCH} \
+                          --head ${NEW_BRANCH} \
+                          --title "Auto PR from ${NEW_BRANCH}" \
+                          --body "This PR was created automatically by Jenkins." \
+                          || gh pr edit ${NEW_BRANCH} --title "Auto PR from ${NEW_BRANCH}" --body "Updated by Jenkins"
                     """
                 }
             }
@@ -78,11 +75,12 @@ pipeline {
                 dir("${PROJECT_DIR}") {
                     sh """
                         git checkout ${BASE_BRANCH}
-                        git branch -D ${NEW_BRANCH}
+                        git branch -D ${NEW_BRANCH} || true
                     """
                 }
             }
         }
+
     }
 
     post {
