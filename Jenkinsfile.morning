@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label '172.16.218.190'
-    }
+    agent { label '172.16.218.190' }
 
     environment {
         PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
@@ -15,31 +13,31 @@ pipeline {
         stage('DEBUG ENVIRONMENT') {
             steps {
                 echo "=== DEBUGGING ENVIRONMENT ==="
-                sh '''
+                sh '''#!/bin/bash
                     echo "---- WHOAMI ----"
                     whoami
 
                     echo "---- HOME ----"
                     echo $HOME
 
-                    echo "---- ENVIRONMENT ----"
+                    echo "---- ENV ----"
                     env
 
                     echo "---- PATH ----"
                     echo $PATH
 
-                    echo "---- CHECK gh in PATH ----"
-                    which gh || echo "which gh FAILED"
+                    echo "---- which gh ----"
+                    which gh || echo "gh NOT FOUND"
 
-                    echo "---- CHECK /usr/bin/gh ----"
-                    ls -l /usr/bin/gh || echo "/usr/bin/gh DOES NOT EXIST"
+                    echo "---- ls /usr/bin/gh ----"
+                    ls -l /usr/bin/gh || echo "/usr/bin/gh missing"
 
-                    echo "---- CHECK /usr/local/bin/gh ----"
-                    ls -l /usr/local/bin/gh || echo "/usr/local/bin/gh DOES NOT EXIST"
+                    echo "---- ls /usr/local/bin/gh ----"
+                    ls -l /usr/local/bin/gh || echo "/usr/local/bin/gh missing"
 
-                    echo "---- TRY gh EXEC ----"
-                    /usr/bin/gh --version || echo "/usr/bin/gh FAILED"
-                    /usr/local/bin/gh --version || echo "/usr/local/bin/gh FAILED"
+                    echo "---- gh --version ----"
+                    /usr/bin/gh --version || echo "FAILED /usr/bin/gh"
+                    /usr/local/bin/gh --version || echo "FAILED /usr/local/bin/gh"
 
                     echo "---- SHELL ----"
                     ps -p $$ -o comm=
@@ -49,7 +47,7 @@ pipeline {
 
         stage('Fetch Latest Main Branch') {
             steps {
-                echo "==> Updating local main branch..."
+                echo "Updating local main branch..."
                 dir("${PROJECT_DIR}") {
                     sh '''
                         git checkout main
@@ -62,20 +60,20 @@ pipeline {
         stage('Detect PRs Marked ready-to-merge') {
             steps {
                 script {
-                    echo "==> Searching for PRs with label 'ready-to-merge'..."
+                    echo "Detecting ready-to-merge PRs..."
 
-                    def prListJson = sh(
+                    def json = sh(
                         script: "/usr/bin/gh pr list --state open --label ready-to-merge --json number,title,headRefName",
                         returnStdout: true
                     ).trim()
 
-                    if (prListJson == "" || prListJson == "[]") {
-                        echo "==> No PRs labeled ready-to-merge."
-                        env.PRS_TO_MERGE = ""
+                    if (json == "" || json == "[]") {
+                        echo "No PRs found."
+                        env.PRS = ""
                     } else {
-                        echo "==> PRs found:"
-                        echo prListJson
-                        env.PRS_TO_MERGE = prListJson
+                        echo "PRs found:"
+                        echo json
+                        env.PRS = json
                     }
                 }
             }
@@ -83,31 +81,29 @@ pipeline {
 
         stage('Merge Approved PRs') {
             when {
-                expression { env.PRS_TO_MERGE?.trim() }
+                expression { env.PRS?.trim() }
             }
             steps {
                 script {
-                    echo "==> Attempting PR merges..."
-
-                    def prs = readJSON(text: env.PRS_TO_MERGE)
+                    def prs = readJSON text: env.PRS
 
                     for (pr in prs) {
                         def number = pr.number
 
-                        echo "==> Checking mergeability for PR #${number}"
-                        def status = sh(
+                        echo "Checking mergeability for PR #${number}"
+
+                        def mergeable = sh(
                             script: "/usr/bin/gh pr view ${number} --json mergeable --jq .mergeable",
                             returnStdout: true
                         ).trim()
 
-                        if (status != "MERGEABLE") {
-                            echo "❌ PR #${number} has conflicts or failing checks."
+                        if (mergeable != "MERGEABLE") {
+                            echo "PR #${number} is NOT mergeable (conflicts)."
                             continue
                         }
 
-                        echo "==> Merging PR #${number}..."
+                        echo "Merging PR #${number}..."
                         sh "/usr/bin/gh pr merge ${number} --merge --delete-branch -y"
-                        echo "✅ PR #${number} merged successfully."
                     }
                 }
             }
@@ -115,14 +111,49 @@ pipeline {
 
         stage('Clone Updated Main Branch') {
             steps {
-                echo "==> Cloning updated main branch..."
                 sh "rm -rf repo_temp"
-                sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
+                sh "git clone -b main ${REPO_URL} repo_temp"
             }
         }
 
-        stage('Sync Code to Project Directory') {
+        stage('Sync Code') {
             steps {
-                echo "==> Syncing to ${PROJECT_DIR}..."
                 sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
             }
+        }
+
+        stage('Composer Install') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh "COMPOSER_ALLOW_SUPERUSER=1 composer install"
+                }
+            }
+        }
+
+        stage('Drush Rebuild') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh "./vendor/bin/drush cr"
+                }
+            }
+        }
+
+        stage('Drush Import Config') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh "./vendor/bin/drush cim -y"
+                    sh "./vendor/bin/drush cr"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "=== SUCCESS: Morning job completed ==="
+        }
+        failure {
+            echo "=== FAILURE: Check logs ==="
+        }
+    }
+}
