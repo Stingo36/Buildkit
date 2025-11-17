@@ -1,0 +1,78 @@
+pipeline {
+    agent {
+        label '172.16.218.190'
+    }
+
+    environment {
+        PROJECT_DIR = '/var/www/html/Buildkit'
+        NEW_BRANCH = 'stingo'
+        BASE_BRANCH = 'main'
+        COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
+    }
+
+    stages {
+
+        stage('Switch to Stingo Branch') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh """
+                        git checkout -b ${NEW_BRANCH}
+                    """
+                }
+            }
+        }
+
+        stage('Run Drush Export Sequence') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh """
+                        ./vendor/bin/drush cr
+                        ./vendor/bin/drush cex -y
+                        ./vendor/bin/drush cr
+                    """
+                }
+            }
+        }
+
+        stage('Git Add & Commit') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    script {
+                        COMMIT_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+
+                        sh """
+                            git add .
+                            git commit -m "${COMMIT_MSG}"
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Push Branch') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh """
+                        git push origin ${NEW_BRANCH}
+                    """
+                }
+            }
+        }
+
+        stage('Cleanup Local Branch') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh """
+                        git checkout ${BASE_BRANCH}
+                        git branch -D ${NEW_BRANCH}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success { echo "Evening pipeline completed successfully." }
+        failure { echo "Evening pipeline failed." }
+    }
+}
