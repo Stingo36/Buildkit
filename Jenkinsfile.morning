@@ -4,7 +4,6 @@ pipeline {
     }
 
     environment {
-        // Try to expose gh globally
         PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
         PROJECT_DIR = '/var/www/html/Buildkit'
         REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
@@ -13,24 +12,21 @@ pipeline {
 
     stages {
 
-        /*******************************************************
-         * STAGE 1: FULL DEBUGGING (critical to find root cause)
-         *******************************************************/
         stage('DEBUG ENVIRONMENT') {
             steps {
                 echo "=== DEBUGGING ENVIRONMENT ==="
-                sh """
+                sh '''
                     echo "---- WHOAMI ----"
                     whoami
 
                     echo "---- HOME ----"
-                    echo \$HOME
+                    echo $HOME
 
                     echo "---- ENVIRONMENT ----"
                     env
 
                     echo "---- PATH ----"
-                    echo \$PATH
+                    echo $PATH
 
                     echo "---- CHECK gh in PATH ----"
                     which gh || echo "which gh FAILED"
@@ -41,34 +37,28 @@ pipeline {
                     echo "---- CHECK /usr/local/bin/gh ----"
                     ls -l /usr/local/bin/gh || echo "/usr/local/bin/gh DOES NOT EXIST"
 
-                    echo "---- TRY EXECUTING gh ----"
+                    echo "---- TRY gh EXEC ----"
                     /usr/bin/gh --version || echo "/usr/bin/gh FAILED"
                     /usr/local/bin/gh --version || echo "/usr/local/bin/gh FAILED"
 
-                    echo "---- WHICH SHELL ----"
+                    echo "---- SHELL ----"
                     ps -p $$ -o comm=
-                """
+                '''
             }
         }
 
-        /*******************************************************
-         * STAGE 2: GIT FETCH MAIN BRANCH
-         *******************************************************/
         stage('Fetch Latest Main Branch') {
             steps {
                 echo "==> Updating local main branch..."
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        git checkout ${BRANCH}
-                        git pull origin ${BRANCH}
-                    """
+                    sh '''
+                        git checkout main
+                        git pull origin main
+                    '''
                 }
             }
         }
 
-        /*******************************************************
-         * STAGE 3: DETECT PRs WITH LABEL ready-to-merge
-         *******************************************************/
         stage('Detect PRs Marked ready-to-merge') {
             steps {
                 script {
@@ -91,9 +81,6 @@ pipeline {
             }
         }
 
-        /*******************************************************
-         * STAGE 4: MERGE APPROVED PRs
-         *******************************************************/
         stage('Merge Approved PRs') {
             when {
                 expression { env.PRS_TO_MERGE?.trim() }
@@ -126,9 +113,6 @@ pipeline {
             }
         }
 
-        /*******************************************************
-         * STAGE 5: CLONE MAIN
-         *******************************************************/
         stage('Clone Updated Main Branch') {
             steps {
                 echo "==> Cloning updated main branch..."
@@ -137,64 +121,8 @@ pipeline {
             }
         }
 
-        /*******************************************************
-         * STAGE 6: SYNC CODE TO PROJECT DIRECTORY
-         *******************************************************/
         stage('Sync Code to Project Directory') {
             steps {
                 echo "==> Syncing to ${PROJECT_DIR}..."
                 sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
             }
-        }
-
-        /*******************************************************
-         * STAGE 7: COMPOSER INSTALL
-         *******************************************************/
-        stage('Composer Install') {
-            steps {
-                dir("${PROJECT_DIR}") {
-                    sh "COMPOSER_ALLOW_SUPERUSER=1 composer install"
-                }
-            }
-        }
-
-        /*******************************************************
-         * STAGE 8: DRUSH CR
-         *******************************************************/
-        stage('Drush Cache Rebuild') {
-            steps {
-                dir("${PROJECT_DIR}") {
-                    sh "./vendor/bin/drush cr"
-                }
-            }
-        }
-
-        /*******************************************************
-         * STAGE 9: DRUSH CIM
-         *******************************************************/
-        stage('Drush Config Import') {
-            steps {
-                dir("${PROJECT_DIR}") {
-                    sh "./vendor/bin/drush cim -y"
-                    sh "./vendor/bin/drush cr"
-                }
-            }
-        }
-    }
-
-    /*******************************************************
-     * POST ACTIONS
-     *******************************************************/
-    post {
-        success {
-            echo "===================================================="
-            echo "   ✅ Morning job completed successfully."
-            echo "===================================================="
-        }
-        failure {
-            echo "===================================================="
-            echo "   ❌ Morning job FAILED. Check logs above."
-            echo "===================================================="
-        }
-    }
-}
