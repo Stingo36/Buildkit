@@ -1,27 +1,33 @@
 pipeline {
-    agent { label '172.16.218.190' }
+
+    agent any
 
     environment {
-        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
         PROJECT_DIR = '/var/www/html/Buildkit'
-        REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
-        BRANCH = 'main'
+        REPO_URL    = 'git@github.com:Stingo36/Buildkit.git'
+        BRANCH      = 'main'
+
+        // FIX: tell Jenkins to use Jenkins user's HOME
+        HOME = "/var/lib/jenkins"
+
+        // FIX: tell Jenkins where GH CLI exists
+        PATH = "/usr/bin:/usr/local/bin:/var/lib/jenkins/bin:${env.PATH}"
+    }
+
+    options {
+        skipDefaultCheckout(true)
     }
 
     stages {
 
         stage('DEBUG ENVIRONMENT') {
             steps {
-                echo "=== DEBUGGING ENVIRONMENT ==="
-                sh '''#!/bin/bash
+                sh '''
                     echo "---- WHOAMI ----"
                     whoami
 
                     echo "---- HOME ----"
                     echo $HOME
-
-                    echo "---- ENV ----"
-                    env
 
                     echo "---- PATH ----"
                     echo $PATH
@@ -29,18 +35,8 @@ pipeline {
                     echo "---- which gh ----"
                     which gh || echo "gh NOT FOUND"
 
-                    echo "---- ls /usr/bin/gh ----"
-                    ls -l /usr/bin/gh || echo "/usr/bin/gh missing"
-
-                    echo "---- ls /usr/local/bin/gh ----"
-                    ls -l /usr/local/bin/gh || echo "/usr/local/bin/gh missing"
-
                     echo "---- gh --version ----"
-                    /usr/bin/gh --version || echo "FAILED /usr/bin/gh"
-                    /usr/local/bin/gh --version || echo "FAILED /usr/local/bin/gh"
-
-                    echo "---- SHELL ----"
-                    ps -p $$ -o comm=
+                    gh --version || echo "gh command failed"
                 '''
             }
         }
@@ -61,19 +57,17 @@ pipeline {
             steps {
                 script {
                     echo "Detecting ready-to-merge PRs..."
-
-                    def json = sh(
-                        script: "/usr/bin/gh pr list --state open --label ready-to-merge --json number,title,headRefName",
+                    def prs = sh(
+                        script: "gh pr list --state open --label ready-to-merge --json number,title,headRefName",
                         returnStdout: true
                     ).trim()
 
-                    if (json == "" || json == "[]") {
-                        echo "No PRs found."
-                        env.PRS = ""
+                    if (!prs || prs == "[]") {
+                        echo "No PRs found with label ready-to-merge."
+                        env.PR_LIST = ""
                     } else {
-                        echo "PRs found:"
-                        echo json
-                        env.PRS = json
+                        echo "PRs found:\n${prs}"
+                        env.PR_LIST = prs
                     }
                 }
             }
@@ -81,29 +75,14 @@ pipeline {
 
         stage('Merge Approved PRs') {
             when {
-                expression { env.PRS?.trim() }
+                expression { env.PR_LIST?.trim() }
             }
             steps {
                 script {
-                    def prs = readJSON text: env.PRS
-
-                    for (pr in prs) {
-                        def number = pr.number
-
-                        echo "Checking mergeability for PR #${number}"
-
-                        def mergeable = sh(
-                            script: "/usr/bin/gh pr view ${number} --json mergeable --jq .mergeable",
-                            returnStdout: true
-                        ).trim()
-
-                        if (mergeable != "MERGEABLE") {
-                            echo "PR #${number} is NOT mergeable (conflicts)."
-                            continue
-                        }
-
-                        echo "Merging PR #${number}..."
-                        sh "/usr/bin/gh pr merge ${number} --merge --delete-branch -y"
+                    def json = readJSON text: env.PR_LIST
+                    json.each { pr ->
+                        echo "Merging PR #${pr.number} - ${pr.title}"
+                        sh "gh pr merge ${pr.number} --squash --delete-branch"
                     }
                 }
             }
@@ -111,8 +90,10 @@ pipeline {
 
         stage('Clone Updated Main Branch') {
             steps {
-                sh "rm -rf repo_temp"
-                sh "git clone -b main ${REPO_URL} repo_temp"
+                dir("repo_temp") {
+                    deleteDir()
+                }
+                sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
             }
         }
 
@@ -125,7 +106,9 @@ pipeline {
         stage('Composer Install') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "COMPOSER_ALLOW_SUPERUSER=1 composer install"
+                    sh '''
+                        COMPOSER_ALLOW_SUPERUSER=1 composer install
+                    '''
                 }
             }
         }
@@ -133,7 +116,7 @@ pipeline {
         stage('Drush Rebuild') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "./vendor/bin/drush cr"
+                    sh './vendor/bin/drush cr'
                 }
             }
         }
@@ -141,8 +124,10 @@ pipeline {
         stage('Drush Import Config') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "./vendor/bin/drush cim -y"
-                    sh "./vendor/bin/drush cr"
+                    sh '''
+                        ./vendor/bin/drush cim -y
+                        ./vendor/bin/drush cr
+                    '''
                 }
             }
         }
@@ -150,7 +135,7 @@ pipeline {
 
     post {
         success {
-            echo "=== SUCCESS: Morning job completed ==="
+            echo "=== SUCCESS ==="
         }
         failure {
             echo "=== FAILURE: Check logs ==="
