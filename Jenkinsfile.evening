@@ -38,11 +38,25 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-                        COMMIT_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+
+                        // Read commit message from file
+                        BASE_MSG = sh(
+                            script: "cat ${COMMIT_FILE}",
+                            returnStdout: true
+                        ).trim()
+
+                        // Generate timestamp (YYYY-MM-DD HH:MM:SS)
+                        TIMESTAMP = sh(
+                            script: "date '+%Y-%m-%d %H:%M:%S'",
+                            returnStdout: true
+                        ).trim()
+
+                        // Final commit message in desired format
+                        FINAL_MSG = "${TIMESTAMP} | ${BASE_MSG}"
 
                         sh """
                             git add .
-                            git commit -m "${COMMIT_MSG}"
+                            git commit -m "${FINAL_MSG}"
                         """
                     }
                 }
