@@ -4,28 +4,35 @@ pipeline {
     }
 
     environment {
+        // FIX: Make sure Jenkins can find GitHub CLI (gh)
+        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
+
         PROJECT_DIR = '/var/www/html/Buildkit'
         REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
-        BASE_BRANCH = 'main'
-    }
-
-    options {
-        skipDefaultCheckout(true)
+        BRANCH = 'main'
     }
 
     stages {
 
-        // =============================================================
-        // 1. AUTO-MERGE PROCESS (SAFE + CONFLICT DETECTION)
-        // =============================================================
+        stage('Check gh availability') {
+            steps {
+                echo "==> Checking if GitHub CLI (gh) is available..."
+                sh """
+                    echo PATH=\$PATH
+                    which gh || echo 'gh NOT FOUND - PATH ISSUE'
+                    gh --version || echo 'gh command failed'
+                """
+            }
+        }
 
         stage('Fetch Latest Main Branch') {
             steps {
                 echo "==> Updating local main branch..."
+
                 dir("${PROJECT_DIR}") {
                     sh """
-                        git checkout ${BASE_BRANCH}
-                        git pull origin ${BASE_BRANCH}
+                        git checkout ${BRANCH}
+                        git pull origin ${BRANCH}
                     """
                 }
             }
@@ -36,25 +43,19 @@ pipeline {
                 script {
                     echo "==> Searching for PRs with label 'ready-to-merge'..."
 
-                    PR_LIST = sh(
-                        script: "gh pr list --state open --label 'ready-to-merge' --json number,title,headRefName --jq '.[]'",
+                    def prListJson = sh(
+                        script: "/usr/bin/gh pr list --state open --label ready-to-merge --json number,title,headRefName",
                         returnStdout: true
                     ).trim()
 
-                    if (PR_LIST == "") {
-                        echo "==> No PRs found with label 'ready-to-merge'."
-                        env.PR_FOUND = "false"
+                    if (prListJson == "" || prListJson == "[]") {
+                        echo "==> No PRs labeled ready-to-merge."
+                        currentBuild.description = "No PRs to merge"
+                        env.PRS_TO_MERGE = ""
                     } else {
-                        echo "==> PRs ready for merge:"
-                        echo PR_LIST
-
-                        NUMBERS = sh(
-                            script: "gh pr list --state open --label 'ready-to-merge' --json number --jq '.[].number'",
-                            returnStdout: true
-                        ).trim()
-
-                        env.PR_FOUND = "true"
-                        env.PR_NUMBERS = NUMBERS
+                        echo "==> PRs found:"
+                        echo prListJson
+                        env.PRS_TO_MERGE = prListJson
                     }
                 }
             }
@@ -62,73 +63,59 @@ pipeline {
 
         stage('Merge Approved PRs') {
             when {
-                expression { env.PR_FOUND == "true" }
+                expression { env.PRS_TO_MERGE?.trim() }
             }
             steps {
                 script {
+                    echo "==> Attempting to auto-merge approved PRs..."
 
-                    for (PR in env.PR_NUMBERS.split()) {
+                    def prs = readJSON(text: env.PRS_TO_MERGE)
 
-                        echo "----------------------------------------------------"
-                        echo "Processing PR #${PR}"
-                        echo "Checking mergeability..."
-                        echo "----------------------------------------------------"
+                    for (pr in prs) {
+                        def number = pr.number
+                        def title = pr.title
 
-                        MERGEABLE = sh(
-                            script: "gh pr view ${PR} --json mergeable --jq '.mergeable'",
+                        echo "==> Checking merge status of PR #${number}: ${title}"
+
+                        def mergeStatus = sh(
+                            script: "/usr/bin/gh pr view ${number} --json mergeable --jq .mergeable",
                             returnStdout: true
                         ).trim()
 
-                        if (MERGEABLE != "MERGEABLE") {
-                            echo "⚠ SKIPPED: PR #${PR} has merge conflicts or is not mergeable."
-                            echo "   -> Manual conflict resolution required."
+                        if (mergeStatus != "MERGEABLE") {
+                            echo "⚠️  PR #${number} cannot be merged automatically (conflict or checks failing)."
                             continue
                         }
 
-                        echo "✅ PR #${PR} is mergeable. Attempting merge..."
+                        echo "==> Merging PR #${number}..."
+                        sh "/usr/bin/gh pr merge ${number} --merge --delete-branch -y"
 
-                        try {
-                            sh """
-                                gh pr merge ${PR} --merge --delete-branch
-                            """
-                            echo "✅ Successfully merged PR #${PR}"
-                        } catch (err) {
-                            echo "❌ ERROR merging PR #${PR}"
-                            echo "Reason: ${err}"
-                            echo "-> Skipping this PR. Main branch remains safe."
-                        }
+                        echo "==> PR #${number} merged successfully."
                     }
                 }
             }
         }
 
-        // =============================================================
-        // 2. DEPLOY UPDATED MAIN BRANCH (YOUR ORIGINAL STEPS)
-        // =============================================================
-
         stage('Clone Updated Main Branch') {
             steps {
-                echo "==> Cloning updated main branch..."
-                script {
-                    sh "rm -rf repo_temp"
-                    sh "git clone -b ${BASE_BRANCH} ${REPO_URL} repo_temp"
-                }
+                echo "==> Cloning updated main branch into Jenkins workspace..."
+
+                sh "rm -rf repo_temp"
+                sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
             }
         }
 
         stage('Sync Code to Project Directory') {
             steps {
-                script {
-                    echo "==> Syncing code to ${PROJECT_DIR}..."
-                    sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
-                }
+                echo "==> Syncing repository into ${PROJECT_DIR}..."
+                sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
             }
         }
 
         stage('Composer Install') {
             steps {
+                echo "==> Running composer install..."
                 dir("${PROJECT_DIR}") {
-                    echo "==> Running composer install..."
                     sh "COMPOSER_ALLOW_SUPERUSER=1 composer install"
                 }
             }
@@ -136,8 +123,8 @@ pipeline {
 
         stage('Drush Cache Rebuild') {
             steps {
+                echo "==> Drush cache rebuild..."
                 dir("${PROJECT_DIR}") {
-                    echo "==> Running drush cr..."
                     sh "./vendor/bin/drush cr"
                 }
             }
@@ -145,26 +132,24 @@ pipeline {
 
         stage('Drush Config Import') {
             steps {
+                echo "==> Running drush cim..."
                 dir("${PROJECT_DIR}") {
-                    echo "==> Importing Drupal config..."
                     sh "./vendor/bin/drush cim -y"
-                    echo "==> Clearing cache..."
                     sh "./vendor/bin/drush cr"
                 }
             }
         }
-
     }
 
     post {
         success {
             echo "===================================================="
-            echo "✅ Morning job completed: Auto-merge + Deployment OK."
+            echo "✅ Morning job completed successfully."
             echo "===================================================="
         }
         failure {
             echo "===================================================="
-            echo "❌ Morning job failed. Check above logs."
+            echo "❌ Morning job failed. Check logs above."
             echo "===================================================="
         }
     }
