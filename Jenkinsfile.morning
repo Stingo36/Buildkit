@@ -4,9 +4,8 @@ pipeline {
     }
 
     environment {
-        // FIX: Make sure Jenkins can find GitHub CLI (gh)
+        // Try to expose gh globally
         PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
-
         PROJECT_DIR = '/var/www/html/Buildkit'
         REPO_URL = 'git@github.com:Stingo36/Buildkit.git'
         BRANCH = 'main'
@@ -14,21 +13,50 @@ pipeline {
 
     stages {
 
-        stage('Check gh availability') {
+        /*******************************************************
+         * STAGE 1: FULL DEBUGGING (critical to find root cause)
+         *******************************************************/
+        stage('DEBUG ENVIRONMENT') {
             steps {
-                echo "==> Checking if GitHub CLI (gh) is available..."
+                echo "=== DEBUGGING ENVIRONMENT ==="
                 sh """
-                    echo PATH=\$PATH
-                    which gh || echo 'gh NOT FOUND - PATH ISSUE'
-                    gh --version || echo 'gh command failed'
+                    echo "---- WHOAMI ----"
+                    whoami
+
+                    echo "---- HOME ----"
+                    echo \$HOME
+
+                    echo "---- ENVIRONMENT ----"
+                    env
+
+                    echo "---- PATH ----"
+                    echo \$PATH
+
+                    echo "---- CHECK gh in PATH ----"
+                    which gh || echo "which gh FAILED"
+
+                    echo "---- CHECK /usr/bin/gh ----"
+                    ls -l /usr/bin/gh || echo "/usr/bin/gh DOES NOT EXIST"
+
+                    echo "---- CHECK /usr/local/bin/gh ----"
+                    ls -l /usr/local/bin/gh || echo "/usr/local/bin/gh DOES NOT EXIST"
+
+                    echo "---- TRY EXECUTING gh ----"
+                    /usr/bin/gh --version || echo "/usr/bin/gh FAILED"
+                    /usr/local/bin/gh --version || echo "/usr/local/bin/gh FAILED"
+
+                    echo "---- WHICH SHELL ----"
+                    ps -p $$ -o comm=
                 """
             }
         }
 
+        /*******************************************************
+         * STAGE 2: GIT FETCH MAIN BRANCH
+         *******************************************************/
         stage('Fetch Latest Main Branch') {
             steps {
                 echo "==> Updating local main branch..."
-
                 dir("${PROJECT_DIR}") {
                     sh """
                         git checkout ${BRANCH}
@@ -38,6 +66,9 @@ pipeline {
             }
         }
 
+        /*******************************************************
+         * STAGE 3: DETECT PRs WITH LABEL ready-to-merge
+         *******************************************************/
         stage('Detect PRs Marked ready-to-merge') {
             steps {
                 script {
@@ -50,7 +81,6 @@ pipeline {
 
                     if (prListJson == "" || prListJson == "[]") {
                         echo "==> No PRs labeled ready-to-merge."
-                        currentBuild.description = "No PRs to merge"
                         env.PRS_TO_MERGE = ""
                     } else {
                         echo "==> PRs found:"
@@ -61,78 +91,89 @@ pipeline {
             }
         }
 
+        /*******************************************************
+         * STAGE 4: MERGE APPROVED PRs
+         *******************************************************/
         stage('Merge Approved PRs') {
             when {
                 expression { env.PRS_TO_MERGE?.trim() }
             }
             steps {
                 script {
-                    echo "==> Attempting to auto-merge approved PRs..."
+                    echo "==> Attempting PR merges..."
 
                     def prs = readJSON(text: env.PRS_TO_MERGE)
 
                     for (pr in prs) {
                         def number = pr.number
-                        def title = pr.title
 
-                        echo "==> Checking merge status of PR #${number}: ${title}"
-
-                        def mergeStatus = sh(
+                        echo "==> Checking mergeability for PR #${number}"
+                        def status = sh(
                             script: "/usr/bin/gh pr view ${number} --json mergeable --jq .mergeable",
                             returnStdout: true
                         ).trim()
 
-                        if (mergeStatus != "MERGEABLE") {
-                            echo "⚠️  PR #${number} cannot be merged automatically (conflict or checks failing)."
+                        if (status != "MERGEABLE") {
+                            echo "❌ PR #${number} has conflicts or failing checks."
                             continue
                         }
 
                         echo "==> Merging PR #${number}..."
                         sh "/usr/bin/gh pr merge ${number} --merge --delete-branch -y"
-
-                        echo "==> PR #${number} merged successfully."
+                        echo "✅ PR #${number} merged successfully."
                     }
                 }
             }
         }
 
+        /*******************************************************
+         * STAGE 5: CLONE MAIN
+         *******************************************************/
         stage('Clone Updated Main Branch') {
             steps {
-                echo "==> Cloning updated main branch into Jenkins workspace..."
-
+                echo "==> Cloning updated main branch..."
                 sh "rm -rf repo_temp"
                 sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
             }
         }
 
+        /*******************************************************
+         * STAGE 6: SYNC CODE TO PROJECT DIRECTORY
+         *******************************************************/
         stage('Sync Code to Project Directory') {
             steps {
-                echo "==> Syncing repository into ${PROJECT_DIR}..."
+                echo "==> Syncing to ${PROJECT_DIR}..."
                 sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
             }
         }
 
+        /*******************************************************
+         * STAGE 7: COMPOSER INSTALL
+         *******************************************************/
         stage('Composer Install') {
             steps {
-                echo "==> Running composer install..."
                 dir("${PROJECT_DIR}") {
                     sh "COMPOSER_ALLOW_SUPERUSER=1 composer install"
                 }
             }
         }
 
+        /*******************************************************
+         * STAGE 8: DRUSH CR
+         *******************************************************/
         stage('Drush Cache Rebuild') {
             steps {
-                echo "==> Drush cache rebuild..."
                 dir("${PROJECT_DIR}") {
                     sh "./vendor/bin/drush cr"
                 }
             }
         }
 
+        /*******************************************************
+         * STAGE 9: DRUSH CIM
+         *******************************************************/
         stage('Drush Config Import') {
             steps {
-                echo "==> Running drush cim..."
                 dir("${PROJECT_DIR}") {
                     sh "./vendor/bin/drush cim -y"
                     sh "./vendor/bin/drush cr"
@@ -141,15 +182,18 @@ pipeline {
         }
     }
 
+    /*******************************************************
+     * POST ACTIONS
+     *******************************************************/
     post {
         success {
             echo "===================================================="
-            echo "✅ Morning job completed successfully."
+            echo "   ✅ Morning job completed successfully."
             echo "===================================================="
         }
         failure {
             echo "===================================================="
-            echo "❌ Morning job failed. Check logs above."
+            echo "   ❌ Morning job FAILED. Check logs above."
             echo "===================================================="
         }
     }
