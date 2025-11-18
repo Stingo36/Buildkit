@@ -1,17 +1,18 @@
 pipeline {
     agent { label '172.16.218.190' }
 
-environment {
-    PROJECT_DIR = '/var/www/html/Buildkit'
-    NEW_BRANCH = "${BRANCH_NAME}"
-    BASE_BRANCH = 'main'
-    COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
+    environment {
+        PROJECT_DIR = '/var/www/html/Buildkit'
+        NEW_BRANCH = "${BRANCH_NAME}"
+        BASE_BRANCH = 'main'
+        COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
 
-    GH_TOKEN = credentials('GH_TOKEN')
-    GITHUB_TOKEN = credentials('GH_TOKEN')   // THIS is allowed
-    PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
-}
+        // Inject GitHub Token from Jenkins Credentials Store
+        GH_TOKEN = credentials('GH_TOKEN')
+        GITHUB_TOKEN = credentials('GH_TOKEN')
 
+        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
+    }
 
     stages {
 
@@ -70,15 +71,21 @@ environment {
         stage('Create or Update Pull Request') {
             steps {
                 dir("${PROJECT_DIR}") {
+
+                    // Force GitHub CLI to use our token
                     sh """
-                        gh pr create \
+                        echo "Using GH token for PR creation..."
+                        export GH_TOKEN=$GH_TOKEN
+                        export GITHUB_TOKEN=$GH_TOKEN
+
+                        GH_TOKEN=$GH_TOKEN gh pr create \
                           --base ${BASE_BRANCH} \
                           --head ${NEW_BRANCH} \
                           --title "Auto PR from ${NEW_BRANCH}" \
                           --body "This PR was created automatically by Jenkins." \
-                        || gh pr edit ${NEW_BRANCH} \
-                          --title "Auto PR from ${NEW_BRANCH}" \
-                          --body "Updated by Jenkins"
+                        || GH_TOKEN=$GH_TOKEN gh pr edit ${NEW_BRANCH} \
+                             --title "Auto PR from ${NEW_BRANCH}" \
+                             --body "Updated by Jenkins"
                     """
                 }
             }
@@ -94,11 +101,14 @@ environment {
                 }
             }
         }
-
     }
 
     post {
-        success { echo "Evening pipeline completed successfully." }
-        failure { echo "Evening pipeline failed." }
+        success {
+            echo "Evening pipeline completed successfully."
+        }
+        failure {
+            echo "Evening pipeline failed."
+        }
     }
 }
