@@ -82,8 +82,8 @@ pipeline {
                         gh pr create \
                           --base ${BASE_BRANCH} \
                           --head stingo \
-                          --title "Config Export - ${TIMESTAMP}" \
-                          --body "Automatic configuration export performed at ${TIMESTAMP}."
+                          --title "Auto Generated PR at - ${TIMESTAMP}" \
+                          --body "${FINAL_MSG}"
                     """
                 }
             }
