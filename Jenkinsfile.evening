@@ -6,27 +6,11 @@ pipeline {
         BASE_BRANCH = 'main'
         COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
 
-        // GitHub token (Jenkins credentials ID: GH_TOKEN)
         GITHUB_TOKEN = credentials('GH_TOKEN')
         GH_TOKEN = "${GITHUB_TOKEN}"
-
-        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
     }
 
     stages {
-
-        stage('Prepare Branch Name') {
-            steps {
-                script {
-                    DATE = sh(script: "date +%Y-%m-%d", returnStdout: true).trim()     // 2025-11-18
-                    TIME = sh(script: "date +%H-%M", returnStdout: true).trim()        // 10-55
-
-                    // Final branch name example: stingo-2025-11-18-10-55
-                    NEW_BRANCH = "stingo-${DATE}-${TIME}"
-                    echo "Using new branch name: ${NEW_BRANCH}"
-                }
-            }
-        }
 
         stage('Create Feature Branch') {
             steps {
@@ -34,8 +18,7 @@ pipeline {
                     sh """
                         git fetch --all
                         git checkout ${BASE_BRANCH}
-                        git pull origin ${BASE_BRANCH}
-                        git checkout -b ${NEW_BRANCH}
+                        git checkout -B stingo
                     """
                 }
             }
@@ -57,19 +40,21 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-                        BASE_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
-                        TIMESTAMP = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
-                        FINAL_MSG = "${TIMESTAMP} | ${BASE_MSG}"
+                        def baseMsg = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+                        def timestamp = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
+
+                        env.TIMESTAMP = timestamp
+                        env.FINAL_MSG = "${timestamp} | ${baseMsg}"
 
                         sh "git add ."
 
-                        CHANGES = sh(script: "git status --porcelain | wc -l", returnStdout: true).trim()
+                        def changes = sh(script: "git status --porcelain | wc -l", returnStdout: true).trim()
 
-                        if (CHANGES == "0") {
-                            echo "No changes detected. Skipping commit, push, and PR creation."
+                        if (changes == "0") {
+                            echo "No changes detected. Skipping push & PR."
                             env.NO_CHANGES = "true"
                         } else {
-                            sh "git commit -m \"${FINAL_MSG}\""
+                            sh "git commit -m \"${env.FINAL_MSG}\""
                             env.NO_CHANGES = "false"
                         }
                     }
@@ -81,7 +66,7 @@ pipeline {
             when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "git push -u origin ${NEW_BRANCH}"
+                    sh "git push -u origin stingo --force"
                 }
             }
         }
@@ -90,29 +75,27 @@ pipeline {
             when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
-
                     sh """
-                        echo "Creating Pull Request using GitHub CLI..."
                         export GH_TOKEN=${GITHUB_TOKEN}
                         export GITHUB_TOKEN=${GITHUB_TOKEN}
 
                         gh pr create \
                           --base ${BASE_BRANCH} \
-                          --head ${NEW_BRANCH} \
-                          --title "Config Export: ${NEW_BRANCH}" \
-                          --body "This PR contains automatically exported configuration changes created by Jenkins on ${TIMESTAMP}."
+                          --head stingo \
+                          --title "Config Export - ${TIMESTAMP}" \
+                          --body "Automatic configuration export performed at ${TIMESTAMP}."
                     """
                 }
             }
         }
 
-        stage('Cleanup Local Branch') {
+        stage('Cleanup Branch') {
             when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
                         git checkout ${BASE_BRANCH}
-                        git branch -D ${NEW_BRANCH} || true
+                        git branch -D stingo || true
                     """
                 }
             }
