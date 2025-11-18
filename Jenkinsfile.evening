@@ -1,17 +1,18 @@
 pipeline {
     agent { label '172.16.218.190' }
 
-    environment {
-        PROJECT_DIR = '/var/www/html/Buildkit'
-        NEW_BRANCH = "${BRANCH_NAME}"
-        BASE_BRANCH = 'main'
-        COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
+environment {
+    PROJECT_DIR = '/var/www/html/Buildkit'
+    NEW_BRANCH = "${BRANCH_NAME}"
+    BASE_BRANCH = 'main'
+    COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
 
-        // GitHub token from Jenkins Credentials
-        GH_TOKEN = credentials('GH_TOKEN')
-        GITHUB_TOKEN = "${GH_TOKEN}"  
-        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
-    }
+    // GitHub token from Jenkins Credentials
+    GH_TOKEN = credentials('GH_TOKEN')
+    GITHUB_TOKEN = GH_TOKEN     // FIXED: no quotes, no interpolation
+    PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
+}
+
 
     stages {
 
