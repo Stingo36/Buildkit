@@ -74,6 +74,7 @@
         "drupal/layout_options": "^1.7",
         "drupal/media_directories": "^2.2@beta",
         "drupal/paragraphs": "^1.19",
+        "drupal/pathauto": "^1.14",
         "drupal/reroute_email": "^2.2",
         "drupal/seckit": "^2.0",
         "drupal/security_review": "^3.1",
