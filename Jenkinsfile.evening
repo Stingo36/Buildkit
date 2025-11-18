@@ -3,18 +3,30 @@ pipeline {
 
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
-        NEW_BRANCH = "${BRANCH_NAME}"
         BASE_BRANCH = 'main'
         COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
 
-        // Inject GitHub Token from Jenkins Credentials Store
-        GH_TOKEN = credentials('GH_TOKEN')
+        // GitHub token (Jenkins credentials ID: GH_TOKEN)
         GITHUB_TOKEN = credentials('GH_TOKEN')
+        GH_TOKEN = "${GITHUB_TOKEN}"
 
         PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
     }
 
     stages {
+
+        stage('Prepare Branch Name') {
+            steps {
+                script {
+                    DATE = sh(script: "date +%Y-%m-%d", returnStdout: true).trim()     // 2025-11-18
+                    TIME = sh(script: "date +%H-%M", returnStdout: true).trim()        // 10-55
+
+                    // Final branch name example: stingo-2025-11-18-10-55
+                    NEW_BRANCH = "stingo-${DATE}-${TIME}"
+                    echo "Using new branch name: ${NEW_BRANCH}"
+                }
+            }
+        }
 
         stage('Create Feature Branch') {
             steps {
@@ -23,7 +35,7 @@ pipeline {
                         git fetch --all
                         git checkout ${BASE_BRANCH}
                         git pull origin ${BASE_BRANCH}
-                        git checkout -B ${NEW_BRANCH}
+                        git checkout -b ${NEW_BRANCH}
                     """
                 }
             }
@@ -45,53 +57,57 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-                        def BASE_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
-                        def TIMESTAMP = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
-                        def FINAL_MSG = "${TIMESTAMP} | ${BASE_MSG}"
+                        BASE_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+                        TIMESTAMP = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
+                        FINAL_MSG = "${TIMESTAMP} | ${BASE_MSG}"
 
-                        sh """
-                            git add .
-                            git commit -m "${FINAL_MSG}" || echo "No changes to commit"
-                        """
+                        sh "git add ."
+
+                        CHANGES = sh(script: "git status --porcelain | wc -l", returnStdout: true).trim()
+
+                        if (CHANGES == "0") {
+                            echo "No changes detected. Skipping commit, push, and PR creation."
+                            env.NO_CHANGES = "true"
+                        } else {
+                            sh "git commit -m \"${FINAL_MSG}\""
+                            env.NO_CHANGES = "false"
+                        }
                     }
                 }
             }
         }
 
         stage('Push Branch') {
+            when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        git push -u origin ${NEW_BRANCH} --force
-                    """
+                    sh "git push -u origin ${NEW_BRANCH}"
                 }
             }
         }
 
-        stage('Create or Update Pull Request') {
+        stage('Create Pull Request') {
+            when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
 
-                    // Force GitHub CLI to use our token
                     sh """
-                        echo "Using GH token for PR creation..."
-                        export GH_TOKEN=$GH_TOKEN
-                        export GITHUB_TOKEN=$GH_TOKEN
+                        echo "Creating Pull Request using GitHub CLI..."
+                        export GH_TOKEN=${GITHUB_TOKEN}
+                        export GITHUB_TOKEN=${GITHUB_TOKEN}
 
-                        GH_TOKEN=$GH_TOKEN gh pr create \
+                        gh pr create \
                           --base ${BASE_BRANCH} \
                           --head ${NEW_BRANCH} \
-                          --title "Auto PR from ${NEW_BRANCH}" \
-                          --body "This PR was created automatically by Jenkins." \
-                        || GH_TOKEN=$GH_TOKEN gh pr edit ${NEW_BRANCH} \
-                             --title "Auto PR from ${NEW_BRANCH}" \
-                             --body "Updated by Jenkins"
+                          --title "Config Export: ${NEW_BRANCH}" \
+                          --body "This PR contains automatically exported configuration changes created by Jenkins on ${TIMESTAMP}."
                     """
                 }
             }
         }
 
         stage('Cleanup Local Branch') {
+            when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
@@ -101,14 +117,11 @@ pipeline {
                 }
             }
         }
+
     }
 
     post {
-        success {
-            echo "Evening pipeline completed successfully."
-        }
-        failure {
-            echo "Evening pipeline failed."
-        }
+        success { echo "Pipeline completed successfully." }
+        failure { echo "Pipeline failed." }
     }
 }
