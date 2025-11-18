@@ -1,19 +1,53 @@
 pipeline {
     agent { label '172.16.218.190' }
 
+    parameters {
+        string(name: 'BRANCH_NAME', defaultValue: 'stingo', description: 'Feature branch name to create')
+    }
+
     environment {
+        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
         PROJECT_DIR = '/var/www/html/Buildkit'
-        NEW_BRANCH = "${BRANCH_NAME}"   // stingo / garry / max (we pass from Jenkins job)
+        NEW_BRANCH = "${BRANCH_NAME}"
         BASE_BRANCH = 'main'
         COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
     }
 
     stages {
 
+        stage('Validate Branch Name') {
+            steps {
+                script {
+                    if (!NEW_BRANCH?.trim()) {
+                        error "BRANCH_NAME cannot be empty or null."
+                    }
+                }
+            }
+        }
+
+        stage('Prepare Workspace') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh """
+                        git reset --hard
+                        git clean -fd
+                        git checkout ${BASE_BRANCH}
+                        git pull origin ${BASE_BRANCH}
+                    """
+                }
+            }
+        }
+
         stage('Create Feature Branch') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "git checkout -b ${NEW_BRANCH}"
+                    sh """
+                        if git rev-parse --verify ${NEW_BRANCH} >/dev/null 2>&1; then
+                          git branch -D ${NEW_BRANCH}
+                        fi
+
+                        git checkout -b ${NEW_BRANCH}
+                    """
                 }
             }
         }
@@ -64,7 +98,9 @@ pipeline {
                           --head ${NEW_BRANCH} \
                           --title "Auto PR from ${NEW_BRANCH}" \
                           --body "This PR was created automatically by Jenkins." \
-                          || gh pr edit ${NEW_BRANCH} --title "Auto PR from ${NEW_BRANCH}" --body "Updated by Jenkins"
+                        || gh pr edit ${NEW_BRANCH} \
+                          --title "Auto PR from ${NEW_BRANCH}" \
+                          --body "Updated by Jenkins"
                     """
                 }
             }
