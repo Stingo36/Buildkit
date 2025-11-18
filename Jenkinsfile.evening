@@ -1,52 +1,28 @@
 pipeline {
     agent { label '172.16.218.190' }
 
-    parameters {
-        string(name: 'BRANCH_NAME', defaultValue: 'stingo', description: 'Feature branch name to create')
-    }
-
     environment {
-        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
         PROJECT_DIR = '/var/www/html/Buildkit'
         NEW_BRANCH = "${BRANCH_NAME}"
         BASE_BRANCH = 'main'
         COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
+
+        // GitHub token from Jenkins Credentials
+        GH_TOKEN = credentials('GH_TOKEN')
+        GITHUB_TOKEN = "${GH_TOKEN}"  
+        PATH = "/usr/bin:/usr/local/bin:${env.PATH}"
     }
 
     stages {
-
-        stage('Validate Branch Name') {
-            steps {
-                script {
-                    if (!NEW_BRANCH?.trim()) {
-                        error "BRANCH_NAME cannot be empty or null."
-                    }
-                }
-            }
-        }
-
-        stage('Prepare Workspace') {
-            steps {
-                dir("${PROJECT_DIR}") {
-                    sh """
-                        git reset --hard
-                        git clean -fd
-                        git checkout ${BASE_BRANCH}
-                        git pull origin ${BASE_BRANCH}
-                    """
-                }
-            }
-        }
 
         stage('Create Feature Branch') {
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
-                        if git rev-parse --verify ${NEW_BRANCH} >/dev/null 2>&1; then
-                          git branch -D ${NEW_BRANCH}
-                        fi
-
-                        git checkout -b ${NEW_BRANCH}
+                        git fetch --all
+                        git checkout ${BASE_BRANCH}
+                        git pull origin ${BASE_BRANCH}
+                        git checkout -B ${NEW_BRANCH}
                     """
                 }
             }
@@ -68,9 +44,9 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-                        BASE_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
-                        TIMESTAMP = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
-                        FINAL_MSG = "${TIMESTAMP} | ${BASE_MSG}"
+                        def BASE_MSG = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+                        def TIMESTAMP = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
+                        def FINAL_MSG = "${TIMESTAMP} | ${BASE_MSG}"
 
                         sh """
                             git add .
@@ -84,7 +60,9 @@ pipeline {
         stage('Push Branch') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "git push -u origin ${NEW_BRANCH}"
+                    sh """
+                        git push -u origin ${NEW_BRANCH} --force
+                    """
                 }
             }
         }
