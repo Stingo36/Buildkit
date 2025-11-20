@@ -8,8 +8,7 @@ pipeline {
 
         GITHUB_TOKEN = credentials('GH_TOKEN')
         GH_TOKEN = "${GITHUB_TOKEN}"
-        REPO = "git@github.com:Stingo36/Buildkit.git"   // CHANGE THIS
-    }
+  REPO = "Stingo36/Buildkit"    }
 
     stages {
 
