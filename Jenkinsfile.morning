@@ -1,144 +1,122 @@
 pipeline {
-
-    agent any
+    agent { label '172.16.218.190' }
 
     environment {
-        PROJECT_DIR = '/var/www/html/Buildkit'
-        REPO_URL    = 'git@github.com:Stingo36/Buildkit.git'
-        BRANCH      = 'main'
+        PROJECT_DIR = "/var/www/html/Buildkit"
+        BASE_BRANCH = "main"
+        FEATURE_BRANCH = "stingo"
 
-        // FIX: tell Jenkins to use Jenkins user's HOME
-        HOME = "/var/lib/jenkins"
-
-        // FIX: tell Jenkins where GH CLI exists
-        PATH = "/usr/bin:/usr/local/bin:/var/lib/jenkins/bin:${env.PATH}"
-    }
-
-    options {
-        skipDefaultCheckout(true)
+        GITHUB_TOKEN = credentials('GH_TOKEN')
+        GH_TOKEN = "${GITHUB_TOKEN}"
+        REPO = "your-org/your-repo"   // CHANGE THIS
     }
 
     stages {
 
-        stage('DEBUG ENVIRONMENT') {
-            steps {
-                sh '''
-                    echo "---- WHOAMI ----"
-                    whoami
-
-                    echo "---- HOME ----"
-                    echo $HOME
-
-                    echo "---- PATH ----"
-                    echo $PATH
-
-                    echo "---- which gh ----"
-                    which gh || echo "gh NOT FOUND"
-
-                    echo "---- gh --version ----"
-                    gh --version || echo "gh command failed"
-                '''
-            }
-        }
-
-        stage('Fetch Latest Main Branch') {
-            steps {
-                echo "Updating local main branch..."
-                dir("${PROJECT_DIR}") {
-                    sh '''
-                        git checkout main
-                        git pull origin main
-                    '''
-                }
-            }
-        }
-
-        stage('Detect PRs Marked ready-to-merge') {
+        stage('Check Open PR & Mergeability') {
             steps {
                 script {
-                    echo "Detecting ready-to-merge PRs..."
-                    def prs = sh(
-                        script: "gh pr list --state open --label ready-to-merge --json number,title,headRefName",
+                    echo "Checking for open PR…"
+
+                    // Fetch PR number for stingo → main
+                    def prNumber = sh(
+                        script: """
+                            GH_TOKEN=${GITHUB_TOKEN} gh pr list \
+                              --repo ${REPO} \
+                              --state open \
+                              --base ${BASE_BRANCH} \
+                              --head ${FEATURE_BRANCH} \
+                              --json number --jq '.[0].number'
+                        """,
                         returnStdout: true
                     ).trim()
 
-                    if (!prs || prs == "[]") {
-                        echo "No PRs found with label ready-to-merge."
-                        env.PR_LIST = ""
-                    } else {
-                        echo "PRs found:\n${prs}"
-                        env.PR_LIST = prs
+                    if (!prNumber) {
+                        error "No open PR found from '${FEATURE_BRANCH}' to '${BASE_BRANCH}'. Stopping."
                     }
+
+                    env.PR_NUMBER = prNumber
+                    echo "Found PR #${env.PR_NUMBER}"
+
+                    // Check mergeability
+                    def mergeable = sh(
+                        script: """
+                            GH_TOKEN=${GITHUB_TOKEN} gh pr view ${PR_NUMBER} \
+                              --repo ${REPO} \
+                              --json mergeable --jq '.mergeable'
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    if (mergeable != "MERGEABLE") {
+                        error "PR #${PR_NUMBER} cannot be merged cleanly. Stopping."
+                    }
+
+                    echo "PR #${PR_NUMBER} is mergeable."
                 }
             }
         }
 
-        stage('Merge Approved PRs') {
-            when {
-                expression { env.PR_LIST?.trim() }
-            }
+        stage('Merge Pull Request') {
             steps {
                 script {
-                    def json = readJSON text: env.PR_LIST
-                    json.each { pr ->
-                        echo "Merging PR #${pr.number} - ${pr.title}"
-                        sh "gh pr merge ${pr.number} --squash --delete-branch"
-                    }
+                    echo "Merging PR #${PR_NUMBER}"
+
+                    sh """
+                        GH_TOKEN=${GITHUB_TOKEN} gh pr merge ${PR_NUMBER} \
+                            --repo ${REPO} \
+                            --merge --delete-branch
+                    """
                 }
             }
         }
 
-        stage('Clone Updated Main Branch') {
+        stage('Pull Latest Main into Workspace') {
             steps {
-                dir("repo_temp") {
-                    deleteDir()
+                dir("${WORKSPACE}") {
+                    sh """
+                        git fetch --all
+                        git checkout ${BASE_BRANCH}
+                        git pull origin ${BASE_BRANCH}
+                    """
                 }
-                sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
             }
         }
 
-        stage('Sync Code') {
+        stage('Sync Files to Apache Directory') {
             steps {
-                sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
+                sh """
+                    rsync -av --delete ${WORKSPACE}/ ${PROJECT_DIR}/
+                """
             }
         }
 
         stage('Composer Install') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh '''
-                        COMPOSER_ALLOW_SUPERUSER=1 composer install
-                    '''
+                    sh """
+                        composer install --no-interaction --prefer-dist
+                    """
                 }
             }
         }
 
-        stage('Drush Rebuild') {
+        stage('Drush Import & Cache Rebuild') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh './vendor/bin/drush cr'
-                }
-            }
-        }
-
-        stage('Drush Import Config') {
-            steps {
-                dir("${PROJECT_DIR}") {
-                    sh '''
+                    sh """
+                        ./vendor/bin/drush cr
                         ./vendor/bin/drush cim -y
                         ./vendor/bin/drush cr
-                    '''
+                    """
                 }
             }
         }
+
     }
 
     post {
-        success {
-            echo "=== SUCCESS ==="
-        }
-        failure {
-            echo "=== FAILURE: Check logs ==="
-        }
+        success { echo "Morning pipeline completed successfully." }
+        failure { echo "Morning pipeline failed." }
     }
 }

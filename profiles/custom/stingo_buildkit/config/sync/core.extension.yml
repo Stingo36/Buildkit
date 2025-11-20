@@ -44,6 +44,7 @@ module:
   content_moderation: 0
   contextual: 0
   css_editor: 0
+  dashboard: 0
   datetime: 0
   dblog: 0
   disable_messages: 0
