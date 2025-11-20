@@ -1,144 +1,84 @@
 pipeline {
-
-    agent any
+    agent { label '172.16.218.190' }
 
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
-        REPO_URL    = 'git@github.com:Stingo36/Buildkit.git'
-        BRANCH      = 'main'
+        BASE_BRANCH = 'main'
+        FEATURE_BRANCH = 'stingo'
 
-        // FIX: tell Jenkins to use Jenkins user's HOME
-        HOME = "/var/lib/jenkins"
-
-        // FIX: tell Jenkins where GH CLI exists
-        PATH = "/usr/bin:/usr/local/bin:/var/lib/jenkins/bin:${env.PATH}"
-    }
-
-    options {
-        skipDefaultCheckout(true)
+        GITHUB_TOKEN = credentials('GH_TOKEN')
+        GH_TOKEN = "${GITHUB_TOKEN}"
     }
 
     stages {
 
-        stage('DEBUG ENVIRONMENT') {
+        stage('Check PR Mergeability') {
             steps {
-                sh '''
-                    echo "---- WHOAMI ----"
-                    whoami
-
-                    echo "---- HOME ----"
-                    echo $HOME
-
-                    echo "---- PATH ----"
-                    echo $PATH
-
-                    echo "---- which gh ----"
-                    which gh || echo "gh NOT FOUND"
-
-                    echo "---- gh --version ----"
-                    gh --version || echo "gh command failed"
-                '''
-            }
-        }
-
-        stage('Fetch Latest Main Branch') {
-            steps {
-                echo "Updating local main branch..."
                 dir("${PROJECT_DIR}") {
-                    sh '''
-                        git checkout main
-                        git pull origin main
-                    '''
-                }
-            }
-        }
+                    script {
+                        // Fetch PR info using GitHub CLI
+                        def prInfo = sh(
+                            script: """
+                                export GH_TOKEN=${GITHUB_TOKEN}
+                                gh pr view ${FEATURE_BRANCH} --json mergeable,state -q '.mergeable + "|" + .state'
+                            """,
+                            returnStdout: true
+                        ).trim()
 
-        stage('Detect PRs Marked ready-to-merge') {
-            steps {
-                script {
-                    echo "Detecting ready-to-merge PRs..."
-                    def prs = sh(
-                        script: "gh pr list --state open --label ready-to-merge --json number,title,headRefName",
-                        returnStdout: true
-                    ).trim()
+                        def (mergeable, state) = prInfo.tokenize('|')
 
-                    if (!prs || prs == "[]") {
-                        echo "No PRs found with label ready-to-merge."
-                        env.PR_LIST = ""
-                    } else {
-                        echo "PRs found:\n${prs}"
-                        env.PR_LIST = prs
+                        if (state != "OPEN") {
+                            error("PR is not open. Current state: ${state}")
+                        }
+
+                        if (mergeable != "MERGEABLE") {
+                            error("PR is not mergeable due to conflicts.")
+                        }
+
+                        echo "PR is mergeable. Proceeding to merge."
                     }
                 }
             }
         }
 
-        stage('Merge Approved PRs') {
-            when {
-                expression { env.PR_LIST?.trim() }
-            }
-            steps {
-                script {
-                    def json = readJSON text: env.PR_LIST
-                    json.each { pr ->
-                        echo "Merging PR #${pr.number} - ${pr.title}"
-                        sh "gh pr merge ${pr.number} --squash --delete-branch"
-                    }
-                }
-            }
-        }
-
-        stage('Clone Updated Main Branch') {
-            steps {
-                dir("repo_temp") {
-                    deleteDir()
-                }
-                sh "git clone -b ${BRANCH} ${REPO_URL} repo_temp"
-            }
-        }
-
-        stage('Sync Code') {
-            steps {
-                sh "rsync -av repo_temp/ ${PROJECT_DIR}/"
-            }
-        }
-
-        stage('Composer Install') {
+        stage('Merge PR') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh '''
-                        COMPOSER_ALLOW_SUPERUSER=1 composer install
-                    '''
+                    sh """
+                        export GH_TOKEN=${GITHUB_TOKEN}
+                        gh pr merge ${FEATURE_BRANCH} --merge --delete-branch --yes
+                    """
                 }
             }
         }
 
-        stage('Drush Rebuild') {
+        stage('Pull Latest from Main') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh './vendor/bin/drush cr'
+                    sh """
+                        git checkout ${BASE_BRANCH}
+                        git pull origin ${BASE_BRANCH}
+                    """
                 }
             }
         }
 
-        stage('Drush Import Config') {
+        stage('Composer & Drush Tasks') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh '''
+                    sh """
+                        composer install
+                        ./vendor/bin/drush cr
                         ./vendor/bin/drush cim -y
                         ./vendor/bin/drush cr
-                    '''
+                    """
                 }
             }
         }
     }
 
     post {
-        success {
-            echo "=== SUCCESS ==="
-        }
-        failure {
-            echo "=== FAILURE: Check logs ==="
-        }
+        success { echo "🌅 Morning pipeline completed successfully." }
+        failure { echo "⛔ Morning pipeline failed." }
     }
 }

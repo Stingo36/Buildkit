@@ -61,6 +61,7 @@
         "drupal/core-recommended": "^10.5",
         "drupal/core-vendor-hardening": "^10.5",
         "drupal/css_editor": "^2.0",
+        "drupal/dashboard": "^2.0",
         "drupal/disable_messages": "^2.1",
         "drupal/easy_email": "^3.0",
         "drupal/eca": "^2.1",
