@@ -7,8 +7,8 @@ pipeline {
         FEATURE_BRANCH = "stingo"
 
         GITHUB_TOKEN = credentials('GH_TOKEN')
-        GH_TOKEN = "${GITHUB_TOKEN}"
-  REPO = "Stingo36/Buildkit"    }
+        REPO = "Stingo36/Buildkit"
+    }
 
     stages {
 
@@ -17,7 +17,7 @@ pipeline {
                 script {
                     echo "Checking for open PR…"
 
-                    // Fetch PR number for stingo → main
+                    // Fetch PR number
                     def prNumber = sh(
                         script: """
                             GH_TOKEN=${GITHUB_TOKEN} gh pr list \
@@ -37,21 +37,51 @@ pipeline {
                     env.PR_NUMBER = prNumber
                     echo "Found PR #${env.PR_NUMBER}"
 
-                    // Check mergeability
-                    def mergeable = sh(
-                        script: """
-                            GH_TOKEN=${GITHUB_TOKEN} gh pr view ${PR_NUMBER} \
-                              --repo ${REPO} \
-                              --json mergeable --jq '.mergeable'
-                        """,
-                        returnStdout: true
-                    ).trim()
+                    // Retry mergeability because GitHub returns UNKNOWN/null
+                    def mergeable = ""
+                    def mergeState = ""
 
-                    if (mergeable != "MERGEABLE") {
-                        error "PR #${PR_NUMBER} cannot be merged cleanly. Stopping."
+                    for (int i = 1; i <= 5; i++) {
+
+                        def jsonOutput = sh(
+                            script: """
+                                GH_TOKEN=${GITHUB_TOKEN} gh pr view ${PR_NUMBER} \
+                                  --repo ${REPO} \
+                                  --json mergeable,mergeStateStatus
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        echo "Mergeability check #${i}: ${jsonOutput}"
+
+                        mergeable = sh(
+                            script: """
+                                echo '${jsonOutput}' | jq -r '.mergeable'
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        mergeState = sh(
+                            script: """
+                                echo '${jsonOutput}' | jq -r '.mergeStateStatus'
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        if (mergeable == "MERGEABLE" && mergeState == "CLEAN") {
+                            echo "PR #${PR_NUMBER} is MERGEABLE and CLEAN."
+                            break
+                        }
+
+                        if (i < 5) {
+                            echo "Mergeability is '${mergeable}', state '${mergeState}'. Retrying..."
+                            sleep 5
+                        }
                     }
 
-                    echo "PR #${PR_NUMBER} is mergeable."
+                    if (!(mergeable == "MERGEABLE" && mergeState == "CLEAN")) {
+                        error "PR #${PR_NUMBER} cannot be merged cleanly. Mergeable=${mergeable}, State=${mergeState}"
+                    }
                 }
             }
         }
