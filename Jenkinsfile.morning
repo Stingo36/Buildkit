@@ -2,23 +2,36 @@ pipeline {
     agent { label '172.16.218.190' }
 
     environment {
-        PROJECT_DIR = "/var/www/html/Buildkit"
         BASE_BRANCH = "main"
         FEATURE_BRANCH = "stingo"
+        APACHE_DIR = "/var/www/html/Buildkit"
 
         GITHUB_TOKEN = credentials('GH_TOKEN')
         GH_TOKEN = "${GITHUB_TOKEN}"
-        REPO = "your-org/your-repo"   // CHANGE THIS
+        REPO = "Stingo36/Buildkit"     // CHANGE IF DIFFERENT
     }
 
     stages {
 
-        stage('Check Open PR & Mergeability') {
+        stage('Pull Latest Main Into Workspace') {
+            steps {
+                dir("${WORKSPACE}") {
+                    sh """
+                        if [ ! -d .git ]; then
+                            git clone https://github.com/${REPO}.git .
+                        fi
+
+                        git fetch --all
+                        git checkout ${BASE_BRANCH}
+                        git pull origin ${BASE_BRANCH}
+                    """
+                }
+            }
+        }
+
+        stage('Check Open PR & Validate Mergeability') {
             steps {
                 script {
-                    echo "Checking for open PR…"
-
-                    // Fetch PR number for stingo → main
                     def prNumber = sh(
                         script: """
                             GH_TOKEN=${GITHUB_TOKEN} gh pr list \
@@ -32,13 +45,11 @@ pipeline {
                     ).trim()
 
                     if (!prNumber) {
-                        error "No open PR found from '${FEATURE_BRANCH}' to '${BASE_BRANCH}'. Stopping."
+                        error "No open PR from ${FEATURE_BRANCH} → ${BASE_BRANCH}. Stopping."
                     }
 
                     env.PR_NUMBER = prNumber
-                    echo "Found PR #${env.PR_NUMBER}"
 
-                    // Check mergeability
                     def mergeable = sh(
                         script: """
                             GH_TOKEN=${GITHUB_TOKEN} gh pr view ${PR_NUMBER} \
@@ -49,33 +60,26 @@ pipeline {
                     ).trim()
 
                     if (mergeable != "MERGEABLE") {
-                        error "PR #${PR_NUMBER} cannot be merged cleanly. Stopping."
+                        error "PR #${PR_NUMBER} is NOT mergeable. Stopping."
                     }
-
-                    echo "PR #${PR_NUMBER} is mergeable."
                 }
             }
         }
 
-        stage('Merge Pull Request') {
+        stage('Merge the PR') {
             steps {
-                script {
-                    echo "Merging PR #${PR_NUMBER}"
-
-                    sh """
-                        GH_TOKEN=${GITHUB_TOKEN} gh pr merge ${PR_NUMBER} \
-                            --repo ${REPO} \
-                            --merge --delete-branch
-                    """
-                }
+                sh """
+                    GH_TOKEN=${GITHUB_TOKEN} gh pr merge ${PR_NUMBER} \
+                        --repo ${REPO} \
+                        --merge --delete-branch
+                """
             }
         }
 
-        stage('Pull Latest Main into Workspace') {
+        stage('Pull Latest Main After Merge') {
             steps {
                 dir("${WORKSPACE}") {
                     sh """
-                        git fetch --all
                         git checkout ${BASE_BRANCH}
                         git pull origin ${BASE_BRANCH}
                     """
@@ -83,40 +87,38 @@ pipeline {
             }
         }
 
-        stage('Sync Files to Apache Directory') {
+        stage('Deploy to Apache Directory') {
             steps {
                 sh """
-                    rsync -av --delete ${WORKSPACE}/ ${PROJECT_DIR}/
+                    sudo rsync -av --delete ${WORKSPACE}/ ${APACHE_DIR}/
                 """
             }
         }
 
-        stage('Composer Install') {
+        stage('Composer Install inside Apache Directory') {
             steps {
-                dir("${PROJECT_DIR}") {
-                    sh """
-                        composer install --no-interaction --prefer-dist
-                    """
-                }
+                sh """
+                    sudo bash -c "cd ${APACHE_DIR} && composer install --no-interaction --prefer-dist"
+                """
             }
         }
 
-        stage('Drush Import & Cache Rebuild') {
+        stage('Run Drush Commands') {
             steps {
-                dir("${PROJECT_DIR}") {
-                    sh """
+                sh """
+                    sudo bash -c "
+                        cd ${APACHE_DIR} &&
+                        ./vendor/bin/drush cr &&
+                        ./vendor/bin/drush cim -y &&
                         ./vendor/bin/drush cr
-                        ./vendor/bin/drush cim -y
-                        ./vendor/bin/drush cr
-                    """
-                }
+                    "
+                """
             }
         }
-
     }
 
     post {
-        success { echo "Morning pipeline completed successfully." }
-        failure { echo "Morning pipeline failed." }
+        success { echo "Pipeline completed successfully." }
+        failure { echo "Pipeline failed. See logs." }
     }
 }
