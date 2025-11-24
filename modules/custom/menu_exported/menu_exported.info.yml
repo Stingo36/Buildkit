@@ -1,0 +1,25 @@
+name: menu_exported
+type: module
+core_version_requirement: '^10 || ^11'
+dependencies:
+  - bootstrap_layout_builder
+  - comment
+  - contact
+  - content_moderation
+#  - custom_traveldesk
+  - dashboard
+  - disable_messages
+  - field_permissions
+  - file
+  - filter
+  - layout_builder
+  - media
+  - node
+  - options
+  - search
+  - shortcut
+  - symfony_mailer
+  - system
+  - user
+  - views
+ # - workflow
