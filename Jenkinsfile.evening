@@ -7,19 +7,38 @@ pipeline {
         COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
 
         GITHUB_TOKEN = credentials('GH_TOKEN')
-        GH_TOKEN = "${GITHUB_TOKEN}"
     }
 
     stages {
 
-        stage('Create Feature Branch') {
+        stage('Prepare Git') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh """
+                        git config user.name "Jenkins Bot"
+                        git config user.email "jenkins@local"
+                        git remote set-url origin https://${GITHUB_TOKEN}@github.com/Stingo36/Buildkit.git
+                    """
+                }
+            }
+        }
+
+        stage('Checkout Base') {
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
                         git fetch --all
                         git checkout ${BASE_BRANCH}
-                        git checkout -B stingo
+                        git pull origin ${BASE_BRANCH}
                     """
+                }
+            }
+        }
+
+        stage('Create Feature Branch') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh "git checkout -B stingo"
                 }
             }
         }
@@ -40,18 +59,25 @@ pipeline {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-                        def baseMsg = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
-                        def timestamp = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
 
-                        env.TIMESTAMP = timestamp
-                        env.FINAL_MSG = "${timestamp} | ${baseMsg}"
+                        // generate commit message
+                        def commitMsg = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+                        def ts = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
+
+                        env.FINAL_MSG = "${ts} | ${commitMsg}"
+
+                        // remove embedded repo if exists
+                        sh "git rm --cached -r repo_temp || true"
 
                         sh "git add ."
 
-                        def changes = sh(script: "git status --porcelain | wc -l", returnStdout: true).trim()
+                        def changeCount = sh(
+                            script: "git status --porcelain | wc -l",
+                            returnStdout: true
+                        ).trim()
 
-                        if (changes == "0") {
-                            echo "No changes detected. Skipping push & PR."
+                        if (changeCount == "0") {
+                            echo "No changes. Skipping push & PR."
                             env.NO_CHANGES = "true"
                         } else {
                             sh "git commit -m \"${env.FINAL_MSG}\""
@@ -66,7 +92,11 @@ pipeline {
             when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "git push -u origin stingo"
+                    timeout(time: 2, unit: 'MINUTES') {
+                        sh """
+                            git push -f -u origin stingo
+                        """
+                    }
                 }
             }
         }
@@ -82,14 +112,14 @@ pipeline {
                         gh pr create \
                           --base ${BASE_BRANCH} \
                           --head stingo \
-                          --title "Auto Generated PR at - ${TIMESTAMP}" \
-                          --body "${FINAL_MSG}"
+                          --title "Auto PR - ${env.FINAL_MSG}" \
+                          --body "${env.FINAL_MSG}"
                     """
                 }
             }
         }
 
-        stage('Cleanup Branch') {
+        stage('Cleanup Local Branch') {
             when { expression { env.NO_CHANGES == "false" } }
             steps {
                 dir("${PROJECT_DIR}") {
