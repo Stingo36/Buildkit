@@ -1,0 +1,29 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - dashboard.dashboard.travel_desk_dashboard
+    - filter.format.basic_html
+    - node.type.domestic_travel_approval_form_co
+    - node.type.page
+    - workflow.workflow.travel_form_status
+    - workflows.workflow.editorial
+  module:
+    - comment
+    - contact
+    - content_moderation
+    - dashboard
+    - disable_messages
+    - field_permissions
+    - file
+    - filter
+    - media
+    - node
+    - search
+    - shortcut
+    - system
+    - workflow
+id: authenticated
+label: 'Authenticated user'
+weight: -9
+is_admin: false
