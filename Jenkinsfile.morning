@@ -7,7 +7,6 @@ pipeline {
         FEATURE_BRANCH = "stingo"
 
         GITHUB_TOKEN = credentials('GH_TOKEN')
-        GH_TOKEN = credentials('GH_TOKEN')
         REPO = "Stingo36/Buildkit"
     }
 
@@ -32,116 +31,33 @@ pipeline {
                     ).trim()
 
                     if (!prNumber) {
-                        error "No open PR found from '${FEATURE_BRANCH}' to '${BASE_BRANCH}'. Stopping."
+                        error "No open PR found."
                     }
 
                     env.PR_NUMBER = prNumber
                     echo "Found PR #${env.PR_NUMBER}"
-
-                    def mergeable = ""
-                    def mergeState = ""
-
-                    for (int i = 1; i <= 6; i++) {
-
-                        def jsonOutput = sh(
-                            script: """
-                                export GH_TOKEN=${GITHUB_TOKEN}
-                                gh pr view ${PR_NUMBER} \
-                                  --repo ${REPO} \
-                                  --json mergeable,mergeStateStatus
-                            """,
-                            returnStdout: true
-                        ).trim()
-
-                        echo "Mergeability check #${i}: ${jsonOutput}"
-
-                        mergeable = sh(
-                            script: "echo '${jsonOutput}' | jq -r '.mergeable'",
-                            returnStdout: true
-                        ).trim()
-
-                        mergeState = sh(
-                            script: "echo '${jsonOutput}' | jq -r '.mergeStateStatus'",
-                            returnStdout: true
-                        ).trim()
-
-                        if (mergeable == "MERGEABLE" && mergeState == "CLEAN") {
-                            echo "PR #${PR_NUMBER} is ready for merge."
-                            break
-                        }
-
-                        echo "Waiting… mergeable=${mergeable}, state=${mergeState}"
-                        sleep 6
-                    }
-
-                    if (!(mergeable == "MERGEABLE" && mergeState == "CLEAN")) {
-                        error "PR #${PR_NUMBER} cannot be merged cleanly."
-                    }
                 }
             }
         }
 
         stage('Merge Pull Request') {
             steps {
-                script {
-                    echo "Merging PR #${PR_NUMBER}"
-
-                    sh """
-                        export GH_TOKEN=${GITHUB_TOKEN}
-                        gh pr merge ${PR_NUMBER} \
-                            --repo ${REPO} \
-                            --merge
-                    """
-                }
-            }
-        }
-
-        stage('Pull Latest Main into Workspace') {
-            steps {
-                dir("${WORKSPACE}") {
-                    sh """
-                        git fetch --all
-                        git checkout ${BASE_BRANCH}
-                        git pull origin ${BASE_BRANCH}
-                    """
-                }
-            }
-        }
-
-        stage('Sync Updated Files (No Deletes)') {
-            steps {
-                script {
-                    echo "Copying changed/new files to ${PROJECT_DIR}"
-                }
                 sh """
-                    rsync -av \
-                        --update \
-                        --inplace \
-                        ${WORKSPACE}/ ${PROJECT_DIR}/
+                    export GH_TOKEN=${GITHUB_TOKEN}
+                    gh pr merge ${PR_NUMBER} \
+                        --repo ${REPO} \
+                        --merge
                 """
             }
         }
 
-        stage('Composer Install (Production Safe)') {
+        stage('Pull Latest Code Into Project Directory') {
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
-                        composer install \
-                            --no-interaction \
-                            --prefer-dist \
-                            --no-dev
-                    """
-                }
-            }
-        }
-
-        stage('Drush Import & Cache Rebuild') {
-            steps {
-                dir("${PROJECT_DIR}") {
-                    sh """
-                        ./vendor/bin/drush cr
-                        ./vendor/bin/drush cim -y
-                        ./vendor/bin/drush cr
+                        git fetch origin ${BASE_BRANCH}
+                        git reset --hard origin/${BASE_BRANCH}
+                        git pull origin ${BASE_BRANCH}
                     """
                 }
             }
@@ -150,7 +66,7 @@ pipeline {
     }
 
     post {
-        success { echo "Pipeline completed successfully." }
+        success { echo "Code pulled successfully." }
         failure { echo "Pipeline failed." }
     }
 }
