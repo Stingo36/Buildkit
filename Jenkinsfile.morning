@@ -2,22 +2,19 @@ pipeline {
     agent { label '172.16.218.190' }
 
     environment {
-        PROJECT_DIR   = "/var/www/html/Buildkit"
-        BASE_BRANCH   = "main"
-        FEATURE_BRANCH = "stingo"
-
-        GITHUB_TOKEN = credentials('GH_TOKEN')
-        REPO = "Stingo36/Buildkit"
+        PROJECT_DIR     = "/var/www/html/Buildkit"
+        BASE_BRANCH     = "main"
+        FEATURE_BRANCH  = "stingo"
+        REPO            = "Stingo36/Buildkit"
+        GITHUB_TOKEN    = credentials('GH_TOKEN')
     }
 
     stages {
 
-        stage('Check Open PR & Mergeability') {
+        stage('Check for Open PR') {
             steps {
                 script {
-                    echo "Checking for open PR…"
-
-                    def prNumber = sh(
+                    def pr = sh(
                         script: """
                             export GH_TOKEN=${GITHUB_TOKEN}
                             gh pr list \
@@ -25,40 +22,71 @@ pipeline {
                               --state open \
                               --base ${BASE_BRANCH} \
                               --head ${FEATURE_BRANCH} \
-                              --json number --jq '.[0].number'
+                              --json number,mergeable \
+                              --jq '.[0]'
                         """,
                         returnStdout: true
                     ).trim()
 
-                    if (!prNumber) {
-                        error "No open PR found."
+                    if (!pr) {
+                        echo "No PR found. Stopping pipeline."
+                        currentBuild.result = "SUCCESS"
+                        return
                     }
 
-                    env.PR_NUMBER = prNumber
-                    echo "Found PR #${env.PR_NUMBER}"
+                    env.PR_NUMBER = sh(
+                        script: "echo '${pr}' | jq -r '.number'",
+                        returnStdout: true
+                    ).trim()
+
+                    env.MERGEABLE = sh(
+                        script: "echo '${pr}' | jq -r '.mergeable'",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Found PR #${env.PR_NUMBER} | mergeable: ${env.MERGEABLE}"
                 }
             }
         }
 
-        stage('Merge Pull Request') {
+        stage('Merge PR (if mergeable)') {
+            when { expression { env.MERGEABLE == "true" } }
             steps {
                 sh """
                     export GH_TOKEN=${GITHUB_TOKEN}
                     gh pr merge ${PR_NUMBER} \
-                        --repo ${REPO} \
-                        --merge
+                      --repo ${REPO} \
+                      --merge
                 """
             }
         }
 
-        stage('Pull Latest Code Into Project Directory') {
+        stage('Pull Main Branch') {
             steps {
                 dir("${PROJECT_DIR}") {
+                    // Only update existing directory — NO delete, NO reset
                     sh """
-                        git fetch origin ${BASE_BRANCH}
-                        git reset --hard origin/${BASE_BRANCH}
+                        git checkout ${BASE_BRANCH}
                         git pull origin ${BASE_BRANCH}
                     """
+                }
+            }
+        }
+
+        stage('Composer Install') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh "composer install --no-interaction"
+                }
+            }
+        }
+
+        stage('Drupal Import') {
+            steps {
+                dir("${PROJECT_DIR}") {
+                    sh "vendor/bin/drush cr"
+                    sh "vendor/bin/drush cim -y"
+                    sh "vendor/bin/drush cr"
                 }
             }
         }
@@ -66,7 +94,7 @@ pipeline {
     }
 
     post {
-        success { echo "Code pulled successfully." }
+        success { echo "Deployment complete." }
         failure { echo "Pipeline failed." }
     }
 }

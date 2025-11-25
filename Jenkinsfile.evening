@@ -3,39 +3,34 @@ pipeline {
 
     environment {
         PROJECT_DIR = '/var/www/html/Buildkit'
-        BASE_BRANCH = 'main'
         COMMIT_FILE = "${PROJECT_DIR}/Commit.txt"
-
         GITHUB_TOKEN = credentials('GH_TOKEN')
+        BASE_BRANCH = "main"
     }
 
     stages {
 
-        stage('Prepare Git') {
+        // 1. Go to project directory
+        stage('Go to directory') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        git config user.name "Jenkins Bot"
-                        git config user.email "jenkins@local"
-                        git remote set-url origin https://${GITHUB_TOKEN}@github.com/Stingo36/Buildkit.git
-                    """
+                    sh "pwd"
                 }
             }
         }
 
-        stage('Checkout Base') {
+        // 2. Drush clear + export
+        stage('Drush export 1') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        git fetch --all
-                        git checkout ${BASE_BRANCH}
-                        git pull origin ${BASE_BRANCH}
-                    """
+                    sh "./vendor/bin/drush cr"
+                    sh "./vendor/bin/drush cex -y"
                 }
             }
         }
 
-        stage('Create Feature Branch') {
+        // 3. Create stingo branch if not exist
+        stage('Checkout stingo branch') {
             steps {
                 dir("${PROJECT_DIR}") {
                     sh "git checkout -B stingo"
@@ -43,72 +38,52 @@ pipeline {
             }
         }
 
-        stage('Drush Export') {
+        // 4. Drush clear again
+        stage('Drush export 2') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        ./vendor/bin/drush cr
-                        ./vendor/bin/drush cex -y
-                        ./vendor/bin/drush cr
-                    """
+                    sh "./vendor/bin/drush cr"
                 }
             }
         }
 
-        stage('Commit Changes') {
+        // 5. Commit changes
+        stage('Commit changes') {
             steps {
                 dir("${PROJECT_DIR}") {
                     script {
-
-                        // generate commit message
+                        // read commit message file
                         def commitMsg = sh(script: "cat ${COMMIT_FILE}", returnStdout: true).trim()
+
+                        // timestamp
                         def ts = sh(script: "date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
 
+                        // final commit message
                         env.FINAL_MSG = "${ts} | ${commitMsg}"
 
-                        // remove embedded repo if exists
-                        sh "git rm --cached -r repo_temp || true"
-
+                        // commit
                         sh "git add ."
-
-                        def changeCount = sh(
-                            script: "git status --porcelain | wc -l",
-                            returnStdout: true
-                        ).trim()
-
-                        if (changeCount == "0") {
-                            echo "No changes. Skipping push & PR."
-                            env.NO_CHANGES = "true"
-                        } else {
-                            sh "git commit -m \"${env.FINAL_MSG}\""
-                            env.NO_CHANGES = "false"
-                        }
+                        sh "git commit -m \"${env.FINAL_MSG}\""
                     }
                 }
             }
         }
 
-        stage('Push Branch') {
-            when { expression { env.NO_CHANGES == "false" } }
+        // 6. Push branch
+        stage('Push stingo branch') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    timeout(time: 2, unit: 'MINUTES') {
-                        sh """
-                            git push -f -u origin stingo
-                        """
-                    }
+                    sh "git push -f origin stingo"
                 }
             }
         }
 
-        stage('Create Pull Request') {
-            when { expression { env.NO_CHANGES == "false" } }
+        // 7. Create PR
+        stage('Create PR') {
             steps {
                 dir("${PROJECT_DIR}") {
                     sh """
                         export GH_TOKEN=${GITHUB_TOKEN}
-                        export GITHUB_TOKEN=${GITHUB_TOKEN}
-
                         gh pr create \
                           --base ${BASE_BRANCH} \
                           --head stingo \
@@ -119,22 +94,19 @@ pipeline {
             }
         }
 
-        stage('Cleanup Local Branch') {
-            when { expression { env.NO_CHANGES == "false" } }
+        // 8. Switch to main + delete local stingo
+        stage('Cleanup branch') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        git checkout ${BASE_BRANCH}
-                        git branch -D stingo || true
-                    """
+                    sh "git checkout ${BASE_BRANCH}"
+                    sh "git branch -D stingo"
                 }
             }
         }
-
     }
 
     post {
-        success { echo "Pipeline completed successfully." }
-        failure { echo "Pipeline failed." }
+        success { echo "DONE" }
+        failure { echo "FAILED" }
     }
 }
