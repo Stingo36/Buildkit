@@ -82,7 +82,7 @@ pipeline {
         stage('Composer Install') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh "composer install --no-interaction"
+                    sh "composer install"
                 }
             }
         }
