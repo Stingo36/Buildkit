@@ -11,7 +11,7 @@ pipeline {
 
     stages {
 
-        // ---------------------- 1. FIND PR ----------------------
+        // 🔹 1. Check for open PR
         stage('Check for Open PR') {
             steps {
                 script {
@@ -30,55 +30,55 @@ pipeline {
                     ).trim()
 
                     if (!pr) {
-                        echo "No PR found. Stopping pipeline."
+                        echo "No PR found. Stopping."
                         currentBuild.result = "SUCCESS"
                         return
                     }
 
-                    env.PR_NUMBER = sh(
-                        script: "echo '${pr}' | jq -r '.number'",
-                        returnStdout: true
-                    ).trim()
-
-                    env.MERGEABLE = sh(
-                        script: "echo '${pr}' | jq -r '.mergeable'",
-                        returnStdout: true
-                    ).trim()
+                    env.PR_NUMBER = sh(script: "echo '${pr}' | jq -r '.number'", returnStdout: true).trim()
+                    env.MERGEABLE = sh(script: "echo '${pr}' | jq -r '.mergeable'", returnStdout: true).trim()
 
                     echo "Found PR #${env.PR_NUMBER} | mergeable: ${env.MERGEABLE}"
                 }
             }
         }
 
-        // ---------------------- 2. MERGE IF MERGEABLE ----------------------
+        // 🔹 2. Merge PR if possible
         stage('Merge PR') {
-            when {
-                expression { env.MERGEABLE == "MERGEABLE" }
-            }
+            when { expression { env.MERGEABLE == "MERGEABLE" } }
             steps {
                 sh """
                     export GH_TOKEN=${GITHUB_TOKEN}
-                    gh pr merge ${PR_NUMBER} \
-                        --repo ${REPO} \
-                        --merge
+                    gh pr merge ${PR_NUMBER} --repo ${REPO} --merge
                 """
-                echo "PR #${PR_NUMBER} merged successfully."
             }
         }
 
-        // ---------------------- 3. PULL LATEST MAIN ----------------------
+        // 🔹 3. Pull latest main (ONLY after merge)
         stage('Pull Latest Code') {
             steps {
-                dir("${PROJECT_DIR}") {
-                    sh """
-                        git checkout ${BASE_BRANCH}
-                        git pull origin ${BASE_BRANCH}
-                    """
-                }
+                sh """
+                    cd ${WORKSPACE}
+                    git checkout ${BASE_BRANCH}
+                    git pull origin ${BASE_BRANCH}
+                """
             }
         }
 
-        // ---------------------- 4. INSTALL COMPOSER ----------------------
+        // 🔹 4. COPY (NO DELETE)
+        stage('Copy Files to Project Directory') {
+            steps {
+                sh """
+                    rsync -av \
+                        --exclude=".git/" \
+                        --exclude="vendor/" \
+                        --exclude="node_modules/" \
+                        ${WORKSPACE}/ ${PROJECT_DIR}/
+                """
+            }
+        }
+
+        // 🔹 5. Composer install in project dir
         stage('Composer Install') {
             steps {
                 dir("${PROJECT_DIR}") {
@@ -87,7 +87,7 @@ pipeline {
             }
         }
 
-        // ---------------------- 5. DRUPAL CONFIG + CACHE ----------------------
+        // 🔹 6. Drupal import
         stage('Drupal Config Import') {
             steps {
                 dir("${PROJECT_DIR}") {
@@ -101,7 +101,7 @@ pipeline {
     }
 
     post {
-        success { echo "Deployment complete." }
-        failure { echo "Pipeline failed." }
+        success { echo "Deployment completed successfully 🎉" }
+        failure { echo "🚨 Deployment failed" }
     }
 }
