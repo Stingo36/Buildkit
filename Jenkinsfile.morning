@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         PROJECT_DIR     = "/var/www/html/Buildkit"
-        DOCROOT         = "/var/www/html/Buildkit/web"
         BASE_BRANCH     = "main"
         FEATURE_BRANCH  = "stingo"
         REPO            = "Stingo36/Buildkit"
@@ -12,9 +11,7 @@ pipeline {
 
     stages {
 
-        // ------------------------------------------------------------
-        // STEP 1 — CHECK FOR OPEN PR
-        // ------------------------------------------------------------
+        // ---------------------- 1. FIND PR ----------------------
         stage('Check for Open PR') {
             steps {
                 script {
@@ -33,7 +30,7 @@ pipeline {
                     ).trim()
 
                     if (!pr) {
-                        echo "No PR found. Stopping deployment."
+                        echo "No PR found. Stopping pipeline."
                         currentBuild.result = "SUCCESS"
                         return
                     }
@@ -53,9 +50,7 @@ pipeline {
             }
         }
 
-        // ------------------------------------------------------------
-        // STEP 2 — MERGE PR IF POSSIBLE
-        // ------------------------------------------------------------
+        // ---------------------- 2. MERGE IF MERGEABLE ----------------------
         stage('Merge PR') {
             when {
                 expression { env.MERGEABLE == "MERGEABLE" }
@@ -64,16 +59,14 @@ pipeline {
                 sh """
                     export GH_TOKEN=${GITHUB_TOKEN}
                     gh pr merge ${PR_NUMBER} \
-                      --repo ${REPO} \
-                      --merge
+                        --repo ${REPO} \
+                        --merge
                 """
                 echo "PR #${PR_NUMBER} merged successfully."
             }
         }
 
-        // ------------------------------------------------------------
-        // STEP 3 — AFTER MERGE → PULL MAIN
-        // ------------------------------------------------------------
+        // ---------------------- 3. PULL LATEST MAIN ----------------------
         stage('Pull Latest Code') {
             steps {
                 dir("${PROJECT_DIR}") {
@@ -85,25 +78,19 @@ pipeline {
             }
         }
 
-        // ------------------------------------------------------------
-        // STEP 4 — COMPOSER INSTALL
-        // ------------------------------------------------------------
+        // ---------------------- 4. INSTALL COMPOSER ----------------------
         stage('Composer Install') {
             steps {
                 dir("${PROJECT_DIR}") {
-                    sh """
-                        composer install --no-interaction
-                    """
+                    sh "composer install --no-interaction"
                 }
             }
         }
 
-        // ------------------------------------------------------------
-        // STEP 5 — DRUPAL IMPORT
-        // ------------------------------------------------------------
-        stage('Drupal Config + Cache Rebuild') {
+        // ---------------------- 5. DRUPAL CONFIG + CACHE ----------------------
+        stage('Drupal Config Import') {
             steps {
-                dir("${DOCROOT}") {
+                dir("${PROJECT_DIR}") {
                     sh "vendor/bin/drush cr"
                     sh "vendor/bin/drush cim -y"
                     sh "vendor/bin/drush cr"
@@ -114,8 +101,7 @@ pipeline {
     }
 
     post {
-        success { echo "Deployment successful 👌" }
-        failure { echo "🚨 Deployment failed" }
-        unstable { echo "⚠️ Deployment unstable" }
+        success { echo "Deployment complete." }
+        failure { echo "Pipeline failed." }
     }
 }
